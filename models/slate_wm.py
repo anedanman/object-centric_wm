@@ -86,14 +86,16 @@ class SlateWM:
         self.actor_modules = [self.actor]
         
     def world_model_loss(self, obs, acs, rews, nonterms):
-        L, B, _, _, _ = obs.size()
-        obs = preprocess_obs(obs)
-        obs_embed = self.obs_encoder(obs[1:])
+        L, B, C, H, W = obs.size()
+        obs = preprocess_obs(obs)[1:]
+        obs_embed = self.obs_encoder(obs.reshape(L*B, C, H, W))
+        obs_embed = obs_embed.reshape(L, B, C, H, W)
         init_state = self.rssm.init_state(self.args.batch_size, self.device)
         prior, self.posterior = self.rssm.observe_rollout(obs_embed, acs[:-1], nonterms[:-1], init_state, self.args.train_seq_len - 1)
         target = self.posterior['tokens'][1:].permute(0, 1, 3, 4, 2).flatten(start_dim=2, end_dim=3)
         cross_entropy = -(target * prior['logits'][:-1]).flatten(start_dim=2).sum(-1).mean()
-        recon = self.obs_decoder(self.posterior['tokens'])
+        _, _, voc, h_enc, w_enc = self.posterior['tokens'].size()
+        recon = self.obs_decoder(self.posterior['tokens'].reshape(L*B, voc, h_enc, w_enc))
         mse = ((obs - recon)**2).sum() / (L * B)
 
         features = self.posterior['slots']

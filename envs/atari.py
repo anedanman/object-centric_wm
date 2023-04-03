@@ -1,8 +1,7 @@
 import gym
 import gym.wrappers
-import numpy as np
 
-from utils.envs import OneHotAction
+from utils import OneHotAction
 
 
 class Atari(gym.Env):

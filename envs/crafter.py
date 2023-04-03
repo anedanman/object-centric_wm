@@ -1,7 +1,7 @@
 import gym
 import crafter
 
-from utils.envs import OneHotAction
+from utils import OneHotAction
 
 
 class CrafterEnv(gym.Env):

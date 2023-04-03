@@ -1,27 +1,15 @@
-import os
-import random
-import time
-import argparse
 import numpy as np
-import wandb
 
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 import torch.optim as optim
-import torch.distributions as distributions
 
-from collections import OrderedDict
-
-from envs.atari import Atari
-from envs.crafter import CrafterEnv
-
-from utils.replay_buffer import ReplayBuffer
-from utils.params import FreezeParameters, compute_return
+from utils import ReplayBuffer
+from utils import FreezeParameters, compute_return
 
 from modules.oc_rssm import OC_RSSM
 from modules.ac_modules import OC_ActionDecoder, OC_DenseDecoder
-from modules.slate_modules import dVAE_encoder, dVAE_decoder
+from modules.slots.slate_modules import dVAE_encoder, dVAE_decoder
 
 def preprocess_obs(obs):
     obs = obs.to(torch.float32)/255.0
@@ -30,7 +18,7 @@ def preprocess_obs(obs):
 class SlateWM:
     def __init__(self, args, device):
         self.args = args
-        self.device
+        self.device = device
         self.data_buffer = ReplayBuffer(args.buffer_size, args.obs_shape, args.action_size,
                                                     args.train_seq_len, args.batch_size)
         
@@ -43,7 +31,7 @@ class SlateWM:
             vocab_size=args.vocab_size,
             d_model=args.d_model,
             num_dec_blocks=args.num_dec_blocks,
-            image_size=args.image_size
+            image_size=args.image_size,
             num_heads=args.num_heads,
             dropout=args.dropout,
             num_slot_heads=args.num_slot_heads,

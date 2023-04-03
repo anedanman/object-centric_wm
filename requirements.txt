@@ -11,4 +11,8 @@ piglet==1.0.0
 piglet-templates==1.2.0
 Pillow==7.1.2
 tensorboardX==2.5
-torch @ https://download.pytorch.org/whl/cu111/torch-1.10.0%2Bcu111-cp37-cp37m-linux_x86_64.whl
+torch==1.10.2
+torchvision==0.11.3
+pytorch-lightning==1.5.9
+matplotlib==3.5.1
+scikit-image==0.18.3

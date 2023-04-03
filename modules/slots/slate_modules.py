@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils.conv import conv2d, Conv2dBlock
+from utils.conv import Conv2dBlock, conv2d
 
 
 class dVAE_encoder(nn.Module):

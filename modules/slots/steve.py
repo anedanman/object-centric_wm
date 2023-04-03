@@ -2,11 +2,11 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .savi_utils import torch_cat
+from utils.savi_utils import torch_cat
 from .savi import SlotAttention, StoSAVi
 from .dVAE import dVAE
 from .steve_transformer import STEVETransformerDecoder
-from .steve_utils import gumbel_softmax, make_one_hot
+from utils.steve_utils import gumbel_softmax, make_one_hot
 
 
 class SlotAttentionWMask(SlotAttention):

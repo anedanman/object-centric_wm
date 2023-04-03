@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 
-from modules.slots.savi_utils import get_rnn
+from utils.savi_utils import get_rnn
 
 
 class Predictor(nn.Module):

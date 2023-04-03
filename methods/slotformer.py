@@ -1,22 +1,20 @@
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 
 import numpy as np
 import torch
 import wandb
 from pytorch_lightning import LightningModule
 import torchvision.utils as vutils
-from pytorch_lightning.utilities.types import STEP_OUTPUT
-from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from configs.slotformer import get_slotformer_config
 from configs.slotformer.slotformer_base import SlotFormerBaseConfig
 from datasets import get_dataset
 from methods import register_method
-from models.slotformer_utils import get_slotformer
+from utils.slotformer_utils import get_slotformer
 
-from modules.slots.savi_utils import to_rgb_from_tensor
+from utils.savi_utils import to_rgb_from_tensor
 from utils.cossine_lr import CosineAnnealingWarmupRestarts
 from utils.optim import get_optimizer
 

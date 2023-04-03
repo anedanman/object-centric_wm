@@ -1,11 +1,10 @@
-import copy
 import math
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .savi_utils import deconv_out_shape, conv_norm_act, deconv_norm_act, assert_shape, SoftPositionEmbed, torch_cat
+from utils.savi_utils import deconv_out_shape, conv_norm_act, deconv_norm_act, assert_shape, SoftPositionEmbed, torch_cat
 from .predictor import ResidualMLPPredictor, TransformerPredictor, \
     RNNPredictorWrapper
 

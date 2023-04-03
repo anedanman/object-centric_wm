@@ -16,3 +16,4 @@ torchvision==0.11.3
 pytorch-lightning==1.5.9
 matplotlib==3.5.1
 scikit-image==0.18.3
+typed-argument-parser==1.8.0

@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 
 from .slotformer import SlotFormer
-from modules.slots.steve_utils import gumbel_softmax, make_one_hot
+from utils.steve_utils import gumbel_softmax, make_one_hot
 from modules.slots.steve import STEVE
 
 

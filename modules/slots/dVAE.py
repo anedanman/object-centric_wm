@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .steve_utils import Conv2dBlock, conv2d, gumbel_softmax, make_one_hot
+from utils.steve_utils import Conv2dBlock, conv2d, gumbel_softmax, make_one_hot
 
 
 class dVAE(nn.Module):

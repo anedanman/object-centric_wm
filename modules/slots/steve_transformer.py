@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .steve_utils import linear
+from utils.steve_utils import linear
 
 
 class MultiHeadAttention(nn.Module):

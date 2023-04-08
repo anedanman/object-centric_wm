@@ -1,7 +1,5 @@
 import os
 import pickle
-import crafter
-import slotformer.rl.envs
 import shutil
 from pathlib import Path
 from typing import Tuple, Optional, List, Set, Union, AnyStr
@@ -15,9 +13,8 @@ from PIL import Image
 from torch import nn
 from skimage.transform import resize
 
-from slotformer.rl.constants import Environments, STATE_IDS_TEMPLATE, \
-    STATE_FOLDER_TEMPLATE, STATE_TEMPLATE, ACTIONS_TEMPLATE, \
-    STATE_IDS_FOLDER_TEMPLATE, ACTIONS_FOLDER_TEMPLATE
+from data_collection.constants import Environments, STATE_IDS_TEMPLATE, STATE_IDS_FOLDER_TEMPLATE, \
+    STATE_FOLDER_TEMPLATE, STATE_TEMPLATE, ACTIONS_FOLDER_TEMPLATE
 
 
 def get_torch_device(device_option: Optional[str]) -> torch.device:

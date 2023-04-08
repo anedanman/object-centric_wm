@@ -1,9 +1,8 @@
-from attrs import define
+import attrs
 
 from configs.core.training_config import TrainingConfig
 
 
-@define(kw_only=True)
 class SlotFormerBaseConfig(TrainingConfig):
     project = "SlotFormer"
     run_name = "Slotformer Base"
@@ -18,7 +17,7 @@ class SlotFormerBaseConfig(TrainingConfig):
     train_batch_size = 32
     val_batch_size = 32
     num_workers = 1
-    n_samples=4
+    n_samples = 4
 
     warmup_steps_pct = 0.05
 
@@ -73,14 +72,26 @@ class SlotFormerBaseConfig(TrainingConfig):
         img_recon_loss=1,
     )
 
+    dvae_dict = dict(
+        down_factor=4,
+        vocab_size=4096,
+        dvae_ckp_path='',
+    )
+
     loss_decay_pct: int = 0
 
     def get_model_config_dict(self):
-        return dict(
+        cfg = dict(
             resolution=self.resolution,
-            clip_len=self.clip_grad,
+            clip_len=self.input_frames,
             slot_dict=self.slot_dict,
             rollout_dict=self.rollout_dict,
             dec_dict=self.dec_dict,
             loss_dict=self.loss_dict,
+            dvae_dict=self.dvae_dict,
         )
+
+        if self.slots_encoder.upper() == "STEVE":
+            cfg['dvae_dict'] = self.dvae_dict
+        return cfg
+

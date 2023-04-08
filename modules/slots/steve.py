@@ -197,6 +197,7 @@ class STEVE(StoSAVi):
         self.down_factor = self.dvae_dict['down_factor']
         self.dvae = dVAE(vocab_size=self.vocab_size, img_channels=3)
         ckp_path = self.dvae_dict['dvae_ckp_path']
+        print(self.dvae_dict)
         assert ckp_path, 'Please provide pretrained dVAE weight'
         ckp = torch.load(ckp_path, map_location='cpu')
         self.dvae.load_state_dict(ckp['state_dict'])

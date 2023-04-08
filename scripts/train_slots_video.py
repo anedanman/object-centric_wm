@@ -1,24 +1,10 @@
-import argparse
-from typing import Optional
-
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, TQDMProgressBar
 from pytorch_lightning.loggers import WandbLogger
-from tap import Tap
 
+from cli.train import TrainArguments
 from configs.core.training_config import TrainingConfig
 from methods import get_method
-
-parser = argparse.ArgumentParser()
-
-
-class TrainArguments(Tap):
-    method: str
-    config: str
-    ddp: bool = False
-    fp16: bool = False
-    checkpoint: Optional[str] = None
-
 
 if __name__ == "__main__":
     args = TrainArguments().parse_args()
@@ -26,7 +12,9 @@ if __name__ == "__main__":
     method = method_class(args.config)
     config: TrainingConfig = method.config
     strategy = "ddp" if args.ddp else None
-    precision = 16 if args.fp16 else None
+    precision = 16 if args.fp16 else 32
+
+
 
     wandb_logger = WandbLogger(project=config.project, name=config.run_name)
     checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoint/{config.run_name}/epochs")

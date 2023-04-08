@@ -1,13 +1,9 @@
-import argparse
 import copy
-from pathlib import Path
-from typing import Optional, List, Literal
-
 import numpy as np
-import torch
-from tap import Tap
 from tqdm import tqdm
+from envs import init_envs
 
+from cli.collect import CollectArgs
 from data_collection.agents import get_agent
 from data_collection.configs.collect_configs import get_collect_config
 from data_collection.constants import Environments
@@ -15,20 +11,7 @@ from data_collection.utils import get_environment, init_lib_seed, construct_blac
     delete_episode_observations, save_obs, check_duplication
 
 
-class CollectArgs(Tap):
-    environment: Environments
-    steps: int = 50
-    seed: int = 42
-    episodes: int = 1000
-    split: Literal['train', 'test', 'val'] = 'train'
-    black_list: Optional[List[Path]] = None
-    device: Optional[str] = None
-
-    def configure(self) -> None:
-        self.add_argument('environment',
-                          type=str,
-                          choices=[e.value for e in Environments])
-
+init_envs()
 
 def collect(args: CollectArgs):
     env = get_environment(args.environment, args.seed)
@@ -123,8 +106,3 @@ def collect(args: CollectArgs):
                     pbar.update(n=1)
 
                     break
-
-
-if __name__ == "__main__":
-    args = CollectArgs().parse_args()
-    collect(args)

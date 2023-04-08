@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from attr import define
+import attrs
 
 
-@define(kw_only=True)
+
 class TrainingConfig:
     project: str = "Object centric WM"
     run_name: str = "Run"

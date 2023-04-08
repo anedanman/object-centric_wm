@@ -99,7 +99,7 @@ class BlockPushing(gym.Env):
         self.action_space = spaces.Discrete(self.num_actions)
         self.observation_space = spaces.Box(
             low=0, high=1,
-            shape=(3, self.width, self.height),
+            shape=(3, self.height, self.width),
             dtype=np.float32
         )
 
@@ -110,33 +110,33 @@ class BlockPushing(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def render(self):
+    def render_obs(self):
         if self.render_type == 'grid':
             im = np.zeros((self.width, self.height, 3))
             for idx, pos in enumerate(self.objects):
                 im[pos[0], pos[1], :] = self.colors[idx][:3]
             return im
         elif self.render_type == 'circles':
-            im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
+            im = np.zeros((self.width*10, self.height*10, 3), dtype=np.float32)
             for idx, pos in enumerate(self.objects):
-                rr, cc = skimage.draw.circle(
-                    pos[0] * 10 + 5, pos[1] * 10 + 5, 5, im.shape)
+                rr, cc = skimage.draw.disk(
+                    (pos[0]*10 + 5, pos[1]*10 + 5), 5, im.shape)
                 im[rr, cc, :] = self.colors[idx][:3]
             return im
         elif self.render_type == 'shapes':
-            im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
+            im = np.zeros((self.width*10, self.height*10, 3), dtype=np.float32)
             for idx, pos in enumerate(self.objects):
                 if idx % 3 == 0:
-                    rr, cc = skimage.draw.circle(
-                        pos[0] * 10 + 5, pos[1] * 10 + 5, 5, im.shape)
+                    rr, cc = skimage.draw.disk(
+                        (pos[0]*10 + 5, pos[1]*10 + 5), 5, shape=im.shape)
                     im[rr, cc, :] = self.colors[idx][:3]
                 elif idx % 3 == 1:
                     rr, cc = triangle(
-                        pos[0] * 10, pos[1] * 10, 10, im.shape)
+                        pos[0]*10, pos[1]*10, 10, im.shape)
                     im[rr, cc, :] = self.colors[idx][:3]
                 else:
                     rr, cc = square(
-                        pos[0] * 10, pos[1] * 10, 10, im.shape)
+                        pos[0]*10, pos[1]*10, 10, im.shape)
                     im[rr, cc, :] = self.colors[idx][:3]
             return im
         elif self.render_type == 'cubes':
@@ -144,7 +144,7 @@ class BlockPushing(gym.Env):
 
     def get_state(self):
 
-        return cp.deepcopy(self.objects)
+        return np.array(cp.deepcopy(self.objects))
 
     def get_2d_state(self):
 
@@ -168,8 +168,8 @@ class BlockPushing(gym.Env):
                     np.random.choice(np.arange(self.height))
                 ]
 
-        state_obs = (self.get_state(), self.render())
-        return state_obs
+        obs = self.render_obs()
+        return obs, {"state": self.get_state()}
 
     def valid_pos(self, pos, obj_id):
         """Check if position is valid."""
@@ -216,7 +216,5 @@ class BlockPushing(gym.Env):
         direction = action % 4
         obj = action // 4
         self.translate(obj, directions[direction])
-
-        state_obs = (self.get_state(), self.render())
-
-        return state_obs, reward, done, None
+        obs = self.render_obs()
+        return obs, reward, done, {"state": self.get_state()}

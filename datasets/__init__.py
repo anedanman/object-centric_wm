@@ -1,17 +1,11 @@
-from utils.get_all_modules import get_all_modules
+import os
+
+from utils.di_module_utils import create_prefix_module_pattern, load_config_modules
 from registry.registry import Registry
 
-__all__ = get_all_modules(__file__)
+_DATASET_PATTERN = create_prefix_module_pattern('ds')
 
-
-def register_dataset(name: str):
-    def decorator(dataset_getter):
-        registry = Registry()
-        registry.add_to_registry(f'datasets/{name}', dataset_getter)
-        return dataset_getter
-
-    return decorator
-
+load_config_modules(os.path.dirname(__file__), _DATASET_PATTERN)
 
 def get_dataset(name: str):
     registry = Registry()

@@ -155,15 +155,15 @@ class STEVESlotFormer(SlotFormer):
 
         return out_dict
 
-    def calc_train_loss(self, data_dict, out_dict):
+    def calc_train_loss(self, data_dict, model_out_dict):
         """Compute loss that are general for SlotAttn models."""
-        gt_slots = out_dict['gt_slots']
-        pred_slots = out_dict['pred_slots']
+        gt_slots = model_out_dict['gt_slots']
+        pred_slots = model_out_dict['pred_slots']
         slot_recon_loss = F.mse_loss(pred_slots, gt_slots)
         loss_dict = {'slot_recon_loss': slot_recon_loss}
         if self.use_img_recon_loss:
-            pred_token_id = out_dict['pred_token_id'].flatten(0, 1)
-            target_token_id = out_dict['target_token_id'].flatten(0, 1)
+            pred_token_id = model_out_dict['pred_token_id'].flatten(0, 1)
+            target_token_id = model_out_dict['target_token_id'].flatten(0, 1)
             token_recon_loss = F.cross_entropy(pred_token_id, target_token_id)
             loss_dict['img_recon_loss'] = token_recon_loss
         return loss_dict
@@ -171,6 +171,6 @@ class STEVESlotFormer(SlotFormer):
     def train(self, mode=True):
         super().train(mode)
         # keep dVAE and Transformer decoder in eval mode
-        self.dvae.eval()
-        self.decoder.eval()
+        if hasattr(self, 'dvae'):
+            self.dvae.eval()
         return self

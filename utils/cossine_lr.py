@@ -2,10 +2,10 @@ from typing import Union, Tuple
 
 import math
 import torch
-from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.lr_scheduler import _LRScheduler
 
 
-class CosineAnnealingWarmupRestarts(LRScheduler):
+class CosineAnnealingWarmupRestarts(_LRScheduler):
     """CosineLR with Warmup.
 
     Code borrowed from:

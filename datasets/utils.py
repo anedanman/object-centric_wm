@@ -7,9 +7,19 @@ from torchvision.transforms import functional as F
 
 import pycocotools.mask as mask_utils
 
+from registry import Registry
+
 
 def compact(l):
     return list(filter(None, l))
+
+def register_dataset(name: str):
+    def decorator(dataset_getter):
+        registry = Registry()
+        registry.add_to_registry(f'datasets/{name}', dataset_getter)
+        return dataset_getter
+
+    return decorator
 
 
 class BaseTransforms(object):

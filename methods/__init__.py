@@ -1,16 +1,12 @@
+import os
+
 from registry import Registry
+from utils.di_module_utils import create_prefix_module_pattern, load_config_modules
 
+_METHODS_PATTERN = create_prefix_module_pattern('m')
 
-def register_method(name: 'str'):
-    registry = Registry()
+load_config_modules(os.path.dirname(__file__), _METHODS_PATTERN)
 
-    def inner(target):
-        registry.add_to_registry(f'methods/{name}', target)
-        return target
-
-    return inner
-
-
-def get_method(name: 'str'):
+def get_method(name: str):
     registry = Registry()
     return registry.get_from_registry(f'methods/{name}')

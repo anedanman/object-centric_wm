@@ -3,10 +3,10 @@ from typing import Optional
 
 import torch
 
-from slotformer.rl.configs.a3c_configs import get_a3c_config
-from slotformer.rl.constants import Environments
-from slotformer.rl.models.a3c_baby import NNPolicy
-from slotformer.rl.utils import get_torch_device
+from data_collection.configs.a3c_configs import get_a3c_config
+from data_collection.constants import Environments
+from data_collection.models.a3c_baby import NNPolicy
+from data_collection.utils import get_torch_device
 
 
 def get_model(env: Environments,

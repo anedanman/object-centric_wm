@@ -337,11 +337,11 @@ class SlotFormer(nn.Module):
             }
         return out_dict
 
-    def calc_train_loss(self, data_dict, out_dict):
+    def calc_train_loss(self, data_dict, model_out_dict):
         """Compute training loss."""
         loss_dict = {}
-        gt_slots = out_dict['gt_slots']  # [B, rollout_T, N, C]
-        pred_slots = out_dict['pred_slots']
+        gt_slots = model_out_dict['gt_slots']  # [B, rollout_T, N, C]
+        pred_slots = model_out_dict['pred_slots']
         slots_loss = F.mse_loss(pred_slots, gt_slots, reduction='none')
 
         # compute per-step slot loss in eval time
@@ -374,7 +374,7 @@ class SlotFormer(nn.Module):
         loss_dict['slot_recon_loss'] = slots_loss.mean()
 
         if self.use_img_recon_loss:
-            recon_combined = out_dict['recon_combined']
+            recon_combined = model_out_dict['recon_combined']
             gt_img = data_dict['img'][:, self.history_len:]
             imgs_loss = F.mse_loss(recon_combined, gt_img, reduction='none')
             # in case of truncated loss, we need to mask out invalid imgs
@@ -395,5 +395,6 @@ class SlotFormer(nn.Module):
         super().train(mode)
         # keep decoder part in eval mode
         self.decoder.eval()
-        self.decoder_pos_embedding.eval()
+        if hasattr(self, 'decoder_pos_embedding'):
+            self.decoder_pos_embedding.eval()
         return self

@@ -2,12 +2,12 @@ from typing import Optional
 
 import gym
 
-from slotformer.rl.utils import raise_env_not_implemented_error
 
 from .a3c import A3CAtariAgent
 from .random import RandomAgent
 from ..configs.collect_configs import BaseCollectConfig
 from ..constants import Environments
+from ..utils import raise_env_not_implemented_error
 
 
 def get_agent(env: gym.Env,

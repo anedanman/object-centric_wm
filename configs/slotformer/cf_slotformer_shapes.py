@@ -1,17 +1,16 @@
-from attr import define
+import attrs
 
-from configs.slotformer import register_slotformer_config
 from configs.slotformer.slotformer_base import SlotFormerBaseConfig
+from configs.slotformer.utils import register_slotformer_config
 
 
-@register_slotformer_config('shapes_baseline')
-@define(kw_only=True)
+@register_slotformer_config('shapes_1')
 class SlotFormerShapes(SlotFormerBaseConfig):
     project = "SlotFormer"
     run_name = "Slotformer Shapes Baseline"
 
-    accelerator: str = 'gpu'
-    devices = 1
+    accelerator: str = 'cpu'
+    devices = -1
 
     # Adam optimizer, Cosine decay with Warmup
     optimizer = 'Adam'
@@ -33,7 +32,7 @@ class SlotFormerShapes(SlotFormerBaseConfig):
     n_samples = 4
 
     # model configs
-    slots_encoder = 'STEVESlotFormer'
+    slots_encoder = 'STEVE'
     resolution = (64, 64)
     input_frames = 15  # burn-in frames
 
@@ -77,7 +76,7 @@ class SlotFormerShapes(SlotFormerBaseConfig):
         dec_num_heads=4,
         dec_d_model=slot_size,
         atten_type='linear',
-        dec_ckp_path='/code/checkpoint/steve_shapes_params/models/epoch/model_4.pth',
+        dec_ckp_path='checkpoint/steve_shapes_params/models/epoch/model_4.pth',
     )
 
     # loss configs

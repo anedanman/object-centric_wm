@@ -1,6 +1,7 @@
-from configs.core.config_registry import create_category
-from utils.get_all_modules import get_all_modules
+import os
 
-__all__ = get_all_modules(__file__)
+from configs.core.config_registry import load_configs
 
-register_slotformer_config, get_slotformer_config = create_category('slotformer')
+load_configs(os.path.dirname(__file__))
+
+

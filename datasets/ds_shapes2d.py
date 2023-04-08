@@ -9,9 +9,9 @@ import torch
 from torch.utils.data import Dataset
 
 from utils.io import load_obj, glob_all
-from . import register_dataset
 
-from .utils import BaseTransforms
+
+from datasets.utils import BaseTransforms, register_dataset
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 

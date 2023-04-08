@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from slotformer.rl.constants import Environments
-from slotformer.rl.utils import raise_env_not_implemented_error
+from data_collection.constants import Environments
+from data_collection.utils import raise_env_not_implemented_error
 
 
 @dataclass

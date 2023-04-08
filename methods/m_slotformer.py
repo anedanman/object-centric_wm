@@ -1,6 +1,7 @@
 import os
 from typing import Dict, Optional
 
+import attrs
 import numpy as np
 import torch
 import wandb
@@ -8,15 +9,15 @@ from pytorch_lightning import LightningModule
 import torchvision.utils as vutils
 from torch.utils.data import DataLoader
 
-from configs.slotformer import get_slotformer_config
 from configs.slotformer.slotformer_base import SlotFormerBaseConfig
+from configs.slotformer.utils import get_slotformer_config
 from datasets import get_dataset
-from methods import register_method
+from methods.utills import register_method
 from utils.slotformer_utils import get_slotformer
 
 from utils.savi_utils import to_rgb_from_tensor
 from utils.cossine_lr import CosineAnnealingWarmupRestarts
-from utils.optim import get_optimizer
+from utils.optim import get_optimizer, filter_wd_parameters
 
 
 @register_method('slotformer')
@@ -36,7 +37,7 @@ class SlotFormerMethod(LightningModule):
                 for x in [imgs, recon_combined, recons, masks]
             ]
         # in PHYRE if the background is black, we scale the mask differently
-        scale = 0. if self.config.__dict__.get('reverse_color', False) else 1.
+        scale = 0. if getattr(self.config, 'reverse_color', False) else 1.
         # combine images in a way so we can display all outputs in one grid
         # output rescaled to be between 0 and 1
         out = to_rgb_from_tensor(
@@ -107,7 +108,7 @@ class SlotFormerMethod(LightningModule):
                 nrow=out.shape[1],
                 # pad white if using black background
                 padding=3,
-                pad_value=1 if self.config.__dict__.get('reverse_color', False) else 0,
+                pad_value=1 if getattr(self.config, 'reverse_color', False) else 0,
             ) for i in range(img.shape[0])
         ])  # [T, 3, H, 3*W]
         return save_video
@@ -142,7 +143,7 @@ class SlotFormerMethod(LightningModule):
     @torch.no_grad()
     def _sample_video(self):
         """model is a simple nn.Module, not warpped in e.g. DataParallel."""
-        dst = self.val_dataloader().dataset
+        dst = self.val_dataset
         sampled_idx = self._get_sample_idx(self.config.n_samples, dst)
         results, rollout_results, compare_results = [], [], []
         for i in sampled_idx:
@@ -200,13 +201,15 @@ class SlotFormerMethod(LightningModule):
         self.log_dict(data_dict)
 
     def training_step(self, data_batch):
-        loss_out = self.model.calc_train_loss(data_batch)
+        model_out = self.model(data_batch)
+        loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss_out['total_loss'] = self.resolve_loss(loss_out)
         self._log_step(loss_out, prefix='train')
         return loss_out['total_loss']
 
-    def validation_step(self, data_batch):
-        loss_out = self.model.calc_train_loss(data_batch)
+    def validation_step(self, data_batch, k):
+        model_out = self.model(data_batch)
+        loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss = self.resolve_loss(loss_out)
         self._log_step(loss_out, prefix='val')
         if not self.video_logged:
@@ -266,7 +269,13 @@ class SlotFormerMethod(LightningModule):
         return DataLoader(self.val_dataset, batch_size=self.config.val_batch_size)
 
     def configure_optimizers(self):
-        optimizer = get_optimizer(self.config.optimizer)
+
+        params = self.model.parameters()
+        if self.config.weight_decay > 0:
+            params = filter_wd_parameters(self.model)
+        optimizer = get_optimizer(self.config.optimizer)(params,
+                                                         weight_decay=self.config.weight_decay,
+                                                         lr=self.config.lr)
         total_steps = len(self.train_dataloader()) * self.config.max_epochs
         warmup_steps = self.config.warmup_steps_pct * total_steps
         lr = self.config.lr

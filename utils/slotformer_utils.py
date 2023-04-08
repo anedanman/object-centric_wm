@@ -1,4 +1,4 @@
-from configs.slotformer.slotformer_base import SlotFormerBaseConfig
+from configs.slotformer import SlotFormerBaseConfig
 from models.slotformer import SlotFormer
 from models.steve_slotformer import STEVESlotFormer
 

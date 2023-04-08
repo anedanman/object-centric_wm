@@ -1,7 +1,5 @@
-import attrs
-
-from configs.slotformer.slotformer_base import SlotFormerBaseConfig
-from configs.slotformer.utils import register_slotformer_config
+from configs.slotformer import SlotFormerBaseConfig
+from configs.slotformer import register_slotformer_config
 
 
 @register_slotformer_config('shapes_1')

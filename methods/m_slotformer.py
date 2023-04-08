@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Optional
 
-import attrs
 import numpy as np
 import torch
 import wandb
@@ -9,8 +8,8 @@ from pytorch_lightning import LightningModule
 import torchvision.utils as vutils
 from torch.utils.data import DataLoader
 
-from configs.slotformer.slotformer_base import SlotFormerBaseConfig
-from configs.slotformer.utils import get_slotformer_config
+from configs.slotformer import SlotFormerBaseConfig
+from configs.slotformer import get_slotformer_config
 from datasets import get_dataset
 from methods.utills import register_method
 from utils.slotformer_utils import get_slotformer
@@ -70,7 +69,7 @@ class SlotFormerMethod(LightningModule):
             return
 
         cur_steps = self.global_step
-        total_steps = self.config.max_epochs * len(self.train_loader)
+        total_steps = self.config.max_epochs * len(self.train_loader())
         decay_steps = self.config.loss_decay_pct * total_steps
 
         if cur_steps >= decay_steps:

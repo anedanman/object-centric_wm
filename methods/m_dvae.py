@@ -91,7 +91,7 @@ class DVAEMethod(LightningModule):
         else:
             return 8
 
-    def log_step(self, data_dict, prefix=''):
+    def _log_step(self, data_dict, prefix=''):
         if prefix:
             data_dict = {f'{prefix}/{key}': val for key, val in data_dict.items()}
         self.log_dict(data_dict)
@@ -148,11 +148,8 @@ class DVAEMethod(LightningModule):
     def resolve_loss(self, loss_dict: Dict[str, torch.Tensor]):
         loss = 0
         losses_weights = self.config.losses_weights
-        for loss, loss_val in loss_dict.items():
-            if loss in losses_weights:
-                loss = loss + losses_weights[loss] * loss_val
-            else:
-                loss = loss + loss_val
+        for loss_name, loss_val in loss_dict.items():
+            loss = loss + losses_weights.get(loss_name, 1) * loss_val
         return loss
 
     def setup(self, stage: Optional[str] = None) -> None:

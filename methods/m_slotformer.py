@@ -139,8 +139,14 @@ class SlotFormerMethod(LightningModule):
         # video: [T, 3, H, W], slots: [T, N, C]
         return video[:T], slots[:T]
 
-    @torch.no_grad()
     def _sample_video(self):
+        if self.config.slots_encoder.upper() == 'SAVI':
+            return self._sample_video_savi()
+        else:
+            return self._sample_video_steve()
+
+    @torch.no_grad()
+    def _sample_video_savi(self):
         """model is a simple nn.Module, not warpped in e.g. DataParallel."""
         dst = self.val_dataset
         sampled_idx = self._get_sample_idx(self.config.n_samples, dst)
@@ -194,7 +200,7 @@ class SlotFormerMethod(LightningModule):
         else:
             return 8
 
-    def log_step(self, data_dict, prefix=''):
+    def _log_step(self, data_dict, prefix=''):
         if prefix:
             data_dict = {f'{prefix}/{key}': val for key, val in data_dict.items()}
         self.log_dict(data_dict)
@@ -250,11 +256,8 @@ class SlotFormerMethod(LightningModule):
     def resolve_loss(self, loss_dict: Dict[str, torch.Tensor]):
         loss = 0
         losses_weights = self.config.losses_weights
-        for loss, loss_val in loss_dict.items():
-            if loss in losses_weights:
-                loss = loss + losses_weights[loss] * loss_val
-            else:
-                loss = loss + loss_val
+        for loss_name, loss_val in loss_dict.items():
+            loss = loss + losses_weights.get(loss_name, 1) * loss_val
         return loss
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -266,6 +269,57 @@ class SlotFormerMethod(LightningModule):
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=self.config.val_batch_size)
+
+    def _slots2video(self, slots):
+        """Decode slots to videos."""
+        T = slots.shape[0]
+        all_soft_recon, all_hard_recon, bs = [], [], 16  # to avoid OOM
+        for idx in range(0, T, bs):
+            soft_recon, hard_recon = self.model.decode(slots[idx:idx + bs])
+            all_soft_recon.append(soft_recon.cpu())
+            all_hard_recon.append(hard_recon.cpu())
+            del soft_recon, hard_recon
+            torch.cuda.empty_cache()
+        soft_recon = torch.cat(all_soft_recon, dim=0)
+        hard_recon = torch.cat(all_hard_recon, dim=0)
+        return soft_recon, hard_recon
+
+    @torch.no_grad()
+    def _sample_video_steve(self, model):
+        """model is a simple nn.Module, not warpped in e.g. DataParallel."""
+        model.eval()
+        dst = self.val_loader.dataset
+        sampled_idx = self._get_sample_idx(self.params.n_samples, dst)
+        results, rollout_results = [], []
+        for i in sampled_idx:
+            video, slots = self._read_video_and_slots(dst, i.item())
+            actions = None
+            if self.params.rollout_dict['action_conditioning']:
+                actions = dst.get_all_actions(i.item())
+                actions = actions.unsqueeze(0).to(self.device)
+            T = video.shape[0]
+            # recon as sanity-check
+            soft_recon, hard_recon = self._slots2video(model, slots)
+            save_video = self._make_video(video, soft_recon, hard_recon)
+            results.append(save_video)
+            # rollout
+            past_steps = T // 4  # self.params.roll_history_len
+            past_slots = slots[:past_steps][None]  # [1, t, N, C]
+            pred_slots = model.rollout(past_slots, T - past_steps, actions=actions)[0]
+            slots = torch.cat([slots[:past_steps], pred_slots], dim=0)
+            soft_recon, hard_recon = self._slots2video(model, slots)
+            save_video = self._make_video(
+                video, soft_recon, hard_recon)
+            rollout_results.append(save_video)
+            del soft_recon, hard_recon
+            torch.cuda.empty_cache()
+
+        log_dict = {
+            'val/video': self._convert_video(results),
+            'val/rollout_video': self._convert_video(rollout_results),
+        }
+        wandb.log(log_dict, step=self.it)
+        torch.cuda.empty_cache()
 
     def configure_optimizers(self):
 

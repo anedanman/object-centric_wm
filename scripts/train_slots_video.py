@@ -16,13 +16,14 @@ if __name__ == "__main__":
 
 
 
-    wandb_logger = WandbLogger(project=config.project, name=config.run_name)
-    checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoint/{config.run_name}/epochs")
+    wandb_logger = WandbLogger(project=config.project, name=config.run_name, log_model='all')
+    checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoint/{config.run_name}", save_on_train_epoch_end=True, save_top_k=config.max_epochs)
     lr_callback = LearningRateMonitor(logging_interval='step')
     tqdm_callback = TQDMProgressBar(refresh_rate=5)
 
     trainer = pl.Trainer(
         default_root_dir=f"checkpoint/{config.run_name}",
+        logger=wandb_logger,
         accelerator=config.accelerator,
         devices=config.devices,
         strategy=strategy,

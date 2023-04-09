@@ -1,3 +1,4 @@
+import einops
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -7,6 +8,7 @@ from .savi import SlotAttention, StoSAVi
 from .dVAE import dVAE
 from .steve_transformer import STEVETransformerDecoder
 from utils.steve_utils import gumbel_softmax, make_one_hot
+from ..loss.inverse_actions import InverseModel
 
 
 class SlotAttentionWMask(SlotAttention):
@@ -120,10 +122,18 @@ class STEVE(StoSAVi):
             pred_ffn_dim=512,
             pred_sg_every=None,
         ),
+        inverse_dict=dict(
+            embedding_size=7 * 128,
+            action_space_size=20,
+            inverse_layers=3,
+            inverse_units=64,
+            inverse_ln=True
+        ),
         loss_dict=dict(
             use_img_recon_loss=False,  # dVAE decoded img recon loss
             use_slots_correlation_loss=False,
             use_cossine_similarity_loss=False,
+            use_inverse_actions_loss=False
         ),
         eps=1e-6,
     ):
@@ -139,6 +149,7 @@ class STEVE(StoSAVi):
         self.dec_dict = dec_dict
         self.pred_dict = pred_dict
         self.loss_dict = loss_dict
+        self.inverse_dict = inverse_dict
 
         self._build_slot_attention()
         self._build_dvae()
@@ -197,9 +208,9 @@ class STEVE(StoSAVi):
         self.down_factor = self.dvae_dict['down_factor']
         self.dvae = dVAE(vocab_size=self.vocab_size, img_channels=3)
         ckp_path = self.dvae_dict['dvae_ckp_path']
-        print(self.dvae_dict)
         assert ckp_path, 'Please provide pretrained dVAE weight'
         ckp = torch.load(ckp_path, map_location='cpu')
+        print(ckp)
         self.dvae.load_state_dict(ckp['state_dict'])
         # fix dVAE
         for p in self.dvae.parameters():
@@ -246,6 +257,10 @@ class STEVE(StoSAVi):
         self.use_img_recon_loss = self.loss_dict['use_img_recon_loss']
         self.use_slots_correlation_loss = self.loss_dict['use_slots_correlation_loss']
         self.use_cossine_similarity_loss = self.loss_dict['use_cossine_similarity_loss']
+        self.use_inverse_actions_loss = self.loss_dict['use_inverse_actions_loss']
+
+        if self.use_inverse_actions_loss:
+            self.inv_model = InverseModel(**self.inverse_dict)
         
     def encode(self, img, prev_slots=None):
         """Encode from img to slots."""
@@ -429,4 +444,12 @@ class STEVE(StoSAVi):
             recon_img = out_dict['recon_img']
             recon_loss = F.mse_loss(recon_img, gt_img)
             loss_dict['img_recon_loss'] = recon_loss
+        if self.use_inverse_actions_loss:
+            in_slots = einops.rearrange(slots, 'b t s d -> b t (s d)')
+            start_slots = in_slots[:, :, :-1]
+            target_slots = in_slots[:, :, 1:]
+            pred_actions = self.inv_model(start_slots, target_slots)
+            print(pred_actions.shape)
+            actions = data_dict['actions']
+            loss_dict['inverse_actions_loss'] = F.cross_entropy(actions)
         return loss_dict

@@ -1,14 +1,16 @@
-from configs.slotformer import SlotFormerBaseConfig
-from configs.slotformer import register_slotformer_config
+import attrs
+
+from configs.slotformer.slotformer_base import SlotFormerBaseConfig
+from configs.slotformer.utils import register_slotformer_config
 
 
-@register_slotformer_config('shapes_1')
+@register_slotformer_config('shapes')
 class SlotFormerShapes(SlotFormerBaseConfig):
     project = "SlotFormer"
     run_name = "Slotformer Shapes Baseline"
 
-    accelerator: str = 'cpu'
-    devices = -1
+    accelerator: str = 'gpu'
+    devices = 1
 
     # Adam optimizer, Cosine decay with Warmup
     optimizer = 'Adam'
@@ -16,7 +18,7 @@ class SlotFormerShapes(SlotFormerBaseConfig):
     warmup_steps_pct = 0.05  # warmup in the first 5% of total steps
     # no weight decay
     clip_grad = 0.08
-    
+
     # data settings
     dataset = 'shapes_slots'
     data_root = './data/shapes'
@@ -87,3 +89,5 @@ class SlotFormerShapes(SlotFormerBaseConfig):
         slot_recon_loss=1,
         img_recon_loss=1,
     )
+
+    next_actions = True

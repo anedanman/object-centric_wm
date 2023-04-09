@@ -42,10 +42,10 @@ class DVAEMethod(LightningModule):
         ])  # [T, 3, H, 2*W]
         return save_video
 
-    def on_train_batch_start(self):
+    def on_train_batch_start(self, *args, **kwargs):
 
         cur_steps = self.global_step
-        total_steps = self.config.max_epochs * len(self.train_loader())
+        total_steps = self.config.max_epochs * len(self.train_dataloader())
         decay_steps = self.config.tau_decay_pct * total_steps
 
         self.model.tau = cosine_anneal(
@@ -57,11 +57,11 @@ class DVAEMethod(LightningModule):
         )
 
     @torch.no_grad()
-    def _sample_video(self, model):
+    def _sample_video(self):
         """model is a simple nn.Module, not warpped in e.g. DataParallel."""
-        model.eval()
+        self.model.eval()
         dst = self.val_dataset
-        sampled_idx = self._get_sample_idx(self.params.n_samples, dst)
+        sampled_idx = self._get_sample_idx(self.config.n_samples, dst)
         results = []
         for i in sampled_idx:
             video = dst.get_video(i.item())['video'].float().to(self.device)
@@ -72,14 +72,14 @@ class DVAEMethod(LightningModule):
                     'tau': 1.,
                     'hard': True,
                 }
-                recon = model(data_dict)['recon']
+                recon = self.model(data_dict)['recon']
                 all_recons.append(recon)
                 torch.cuda.empty_cache()
             recon_video = torch.cat(all_recons, dim=0)
             save_video = self._make_video(video, recon_video)
             results.append(save_video)
 
-        wandb.log({'val/video': self._convert_video(results)}, step=self.it)
+        self.logger.experiment.log({'val/video': self._convert_video(results)}, step=self.global_step)
         torch.cuda.empty_cache()
 
     @property
@@ -107,12 +107,12 @@ class DVAEMethod(LightningModule):
     def validation_step(self, data_batch, k):
         model_out = self.model(data_batch)
         loss_out = self.model.calc_train_loss(data_batch, model_out)
-        loss = self.resolve_loss(loss_out)
+        loss_out['total_loss'] = self.resolve_loss(loss_out)
         self._log_step(loss_out, prefix='val')
         if not self.video_logged:
             self.video_logged = True
             self._sample_video()
-        return loss
+        return loss_out['total_loss']
 
     @staticmethod
     def _pad_frame(video, target_T):

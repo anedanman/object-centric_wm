@@ -27,6 +27,7 @@ class ShapesDataset(Dataset):
             n_sample_frames=6,
             frame_offset=None,
             video_len=50,
+            next_actions=False,
     ):
 
         assert split in ['train', 'val', 'test']
@@ -37,6 +38,7 @@ class ShapesDataset(Dataset):
         self.frame_offset = frame_offset
         self.video_len = video_len
         self.actions_cache = {}
+        self.next_actions = next_actions
 
         # Get all numbers
         self.valid_idx = self._get_sample_idx()
@@ -52,8 +54,9 @@ class ShapesDataset(Dataset):
         if folder not in self.actions_cache:
             filename = osp.join(folder, 'actions.pkl')
             with open(filename, "rb") as file:
-                actions = pickle.load(file)[1:]
-                actions.append(0)
+                actions = pickle.load(file)
+                if self.next_actions:
+                    actions = actions[1:]
             self.actions_cache[folder] = actions
         return self.actions_cache[folder]
 
@@ -153,6 +156,7 @@ class ShapesSlotsDataset(ShapesDataset):
             n_sample_frames=16,
             frame_offset=None,
             video_len=50,
+            next_actions=False
     ):
         super().__init__(
             data_root=data_root,
@@ -161,6 +165,7 @@ class ShapesSlotsDataset(ShapesDataset):
             n_sample_frames=n_sample_frames,
             frame_offset=frame_offset,
             video_len=video_len,
+            next_actions=next_actions
         )
 
         # pre-computed slots
@@ -212,6 +217,7 @@ def build_shapes_dataset(params, val_only=False):
         n_sample_frames=params.n_sample_frames,
         frame_offset=params.frame_offset,
         video_len=params.video_len,
+        next_actions=params.next_actions
     )
     val_dataset = ShapesDataset(**args)
     if val_only:
@@ -233,6 +239,7 @@ def build_shapes_slots_dataset(params, val_only=False):
         n_sample_frames=params.n_sample_frames,
         frame_offset=params.frame_offset,
         video_len=params.video_len,
+        next_actions=params.next_actions
     )
     val_dataset = ShapesSlotsDataset(**args)
     if val_only:

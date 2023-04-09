@@ -8,8 +8,8 @@ from pytorch_lightning import LightningModule
 import torchvision.utils as vutils
 from torch.utils.data import DataLoader
 
-from configs.slotformer import SlotFormerBaseConfig
-from configs.slotformer import get_slotformer_config
+from configs.slotformer.slotformer_base import SlotFormerBaseConfig
+from configs.slotformer.utils import get_slotformer_config
 from datasets import get_dataset
 from methods.utills import register_method
 from utils.slotformer_utils import get_slotformer
@@ -215,12 +215,12 @@ class SlotFormerMethod(LightningModule):
     def validation_step(self, data_batch, k):
         model_out = self.model(data_batch)
         loss_out = self.model.calc_train_loss(data_batch, model_out)
-        loss = self.resolve_loss(loss_out)
+        loss_out['total_loss'] = self.resolve_loss(loss_out)
         self._log_step(loss_out, prefix='val')
         if not self.video_logged:
             self.video_logged = True
             self._sample_video()
-        return loss
+        return loss_out['total_loss']
 
     @staticmethod
     def _pad_frame(video, target_T):
@@ -285,29 +285,28 @@ class SlotFormerMethod(LightningModule):
         return soft_recon, hard_recon
 
     @torch.no_grad()
-    def _sample_video_steve(self, model):
-        """model is a simple nn.Module, not warpped in e.g. DataParallel."""
-        model.eval()
-        dst = self.val_loader.dataset
-        sampled_idx = self._get_sample_idx(self.params.n_samples, dst)
+    def _sample_video_steve(self):
+        self.model.eval()
+        dst = self.val_dataset
+        sampled_idx = self._get_sample_idx(self.config.n_samples, dst)
         results, rollout_results = [], []
         for i in sampled_idx:
             video, slots = self._read_video_and_slots(dst, i.item())
             actions = None
-            if self.params.rollout_dict['action_conditioning']:
+            if self.config.rollout_dict['action_conditioning']:
                 actions = dst.get_all_actions(i.item())
                 actions = actions.unsqueeze(0).to(self.device)
             T = video.shape[0]
             # recon as sanity-check
-            soft_recon, hard_recon = self._slots2video(model, slots)
+            soft_recon, hard_recon = self._slots2video(slots)
             save_video = self._make_video(video, soft_recon, hard_recon)
             results.append(save_video)
             # rollout
-            past_steps = T // 4  # self.params.roll_history_len
+            past_steps = T // 4
             past_slots = slots[:past_steps][None]  # [1, t, N, C]
-            pred_slots = model.rollout(past_slots, T - past_steps, actions=actions)[0]
+            pred_slots = self.model.rollout(past_slots, T - past_steps, actions=actions)[0]
             slots = torch.cat([slots[:past_steps], pred_slots], dim=0)
-            soft_recon, hard_recon = self._slots2video(model, slots)
+            soft_recon, hard_recon = self._slots2video(slots)
             save_video = self._make_video(
                 video, soft_recon, hard_recon)
             rollout_results.append(save_video)

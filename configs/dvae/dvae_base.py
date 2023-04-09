@@ -15,6 +15,7 @@ class DVAEBaseConfig(TrainingConfig):
     val_batch_size = 32
     num_workers = 1
     n_samples = 4
+    max_epochs = 10
 
     warmup_steps_pct = 0.05
 

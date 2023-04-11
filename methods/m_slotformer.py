@@ -188,7 +188,7 @@ class SlotFormerMethod(LightningModule):
             'val/rollout_video': self._convert_video(rollout_results),
             'val/compare_video': self._convert_video(compare_results),
         }
-        self.log_dict(log_dict)
+        self.logger.experiment.log(log_dict, step=self.global_step)
         torch.cuda.empty_cache()
 
     @property
@@ -317,7 +317,7 @@ class SlotFormerMethod(LightningModule):
             'val/video': self._convert_video(results),
             'val/rollout_video': self._convert_video(rollout_results),
         }
-        wandb.log(log_dict, step=self.it)
+        self.logger.experiment.log(log_dict, step=self.global_step)
         torch.cuda.empty_cache()
 
     def configure_optimizers(self):

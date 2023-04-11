@@ -10,11 +10,9 @@ from torch.utils.data import Dataset
 
 from utils.io import load_obj, glob_all
 
-
 from datasets.utils import BaseTransforms, register_dataset
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
 
 
 class ShapesDataset(Dataset):
@@ -57,6 +55,7 @@ class ShapesDataset(Dataset):
                 actions = pickle.load(file)
                 if self.next_actions:
                     actions = actions[1:]
+                    actions.append(0)  # work around for loaders
             self.actions_cache[folder] = actions
         return self.actions_cache[folder]
 
@@ -113,9 +112,11 @@ class ShapesDataset(Dataset):
             return self.get_video(idx)
 
         frames = self._read_frames(idx)
+        actions = self.read_actions(idx)
         data_dict = {
             'data_idx': idx,
             'img': frames,
+            'actions': actions,
         }
         if self.split != 'train':
             bboxes, pres_mask = self._read_bboxes(idx)

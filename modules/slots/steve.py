@@ -4,6 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from utils.savi_utils import torch_cat
+from utils.checkpoint import delete_model_from_state_dict
 from .savi import SlotAttention, StoSAVi
 from .dVAE import dVAE
 from .steve_transformer import STEVETransformerDecoder
@@ -47,7 +48,7 @@ class SlotAttentionWMask(SlotAttention):
                     slots = slots.detach() + slots_init - slots_init.detach()
                 elif self.truncate == 'fixed-point':
                     slots = slots.detach()
-            
+
             slots_prev = slots
 
             # Attention. Shape: [B, num_slots, slot_size].
@@ -84,61 +85,61 @@ class STEVE(StoSAVi):
     """SA model with TransformerDecoder predicting patch tokens."""
 
     def __init__(
-        self,
-        resolution,
-        clip_len,
-        slot_dict=dict(
-            num_slots=7,
-            slot_size=128,
-            slot_mlp_size=256,
-            num_iterations=2,
-            slots_init='shared_gaussian',
-            truncate='bi-level',
-            sigma=1
-        ),
-        dvae_dict=dict(
-            down_factor=4,
-            vocab_size=4096,
-            dvae_ckp_path='',
-        ),
-        enc_dict=dict(
-            enc_channels=(3, 64, 64, 64, 64),
-            enc_ks=5,
-            enc_out_channels=128,
-            enc_norm='',
-        ),
-        dec_dict=dict(
-            dec_type='slate',
-            dec_num_layers=4,
-            dec_num_heads=4,
-            dec_d_model=128,
-            atten_type='multihead'
-        ),
-        pred_dict=dict(
-            pred_rnn=True,
-            pred_norm_first=True,
-            pred_num_layers=2,
-            pred_num_heads=4,
-            pred_ffn_dim=512,
-            pred_sg_every=None,
-        ),
-        inverse_dict=dict(
-            embedding_size=7 * 128,
-            action_space_size=20,
-            inverse_layers=3,
-            inverse_units=64,
-            inverse_ln=True
-        ),
-        loss_dict=dict(
-            use_img_recon_loss=False,  # dVAE decoded img recon loss
-            use_slots_correlation_loss=False,
-            use_cossine_similarity_loss=False,
-            use_inverse_actions_loss=False
-        ),
-        eps=1e-6,
+            self,
+            resolution,
+            clip_len,
+            slot_dict=dict(
+                num_slots=7,
+                slot_size=128,
+                slot_mlp_size=256,
+                num_iterations=2,
+                slots_init='shared_gaussian',
+                truncate='bi-level',
+                sigma=1
+            ),
+            dvae_dict=dict(
+                down_factor=4,
+                vocab_size=4096,
+                dvae_ckp_path='',
+            ),
+            enc_dict=dict(
+                enc_channels=(3, 64, 64, 64, 64),
+                enc_ks=5,
+                enc_out_channels=128,
+                enc_norm='',
+            ),
+            dec_dict=dict(
+                dec_type='slate',
+                dec_num_layers=4,
+                dec_num_heads=4,
+                dec_d_model=128,
+                atten_type='multihead'
+            ),
+            pred_dict=dict(
+                pred_rnn=True,
+                pred_norm_first=True,
+                pred_num_layers=2,
+                pred_num_heads=4,
+                pred_ffn_dim=512,
+                pred_sg_every=None,
+            ),
+            inverse_dict=dict(
+                embedding_size=7 * 128,
+                action_space_size=20,
+                inverse_layers=3,
+                inverse_units=64,
+                inverse_ln=True
+            ),
+            loss_dict=dict(
+                use_img_recon_loss=False,  # dVAE decoded img recon loss
+                use_slots_correlation_loss=False,
+                use_cossine_similarity_loss=False,
+                use_inverse_actions_loss=False
+            ),
+            eps=1e-6,
     ):
-        super().__init__()
-        
+        nn.Module.__init__(self)
+
         self.resolution = resolution
         self.clip_len = clip_len
         self.eps = eps
@@ -169,10 +170,10 @@ class STEVE(StoSAVi):
         self.slot_size = self.slot_dict['slot_size']
         self.slot_mlp_size = self.slot_dict['slot_mlp_size']
         self.num_iterations = self.slot_dict['num_iterations']
-        self.sa_truncate = self.slot_dict['truncate'] 
-        self.sa_init = self.slot_dict['slots_init'] 
+        self.sa_truncate = self.slot_dict['truncate']
+        self.sa_init = self.slot_dict['slots_init']
         self.sa_init_sigma = self.slot_dict['sigma']
-        
+
         assert self.sa_init in ['shared_gaussian', 'embedding', 'param', 'embedding_lr_sigma']
         if self.sa_init == 'shared_gaussian':
             self.slot_mu = nn.Parameter(torch.zeros(1, 1, self.slot_size))
@@ -191,7 +192,7 @@ class STEVE(StoSAVi):
                 nn.init.normal_(torch.empty(1, self.num_slots, self.slot_size)))
         else:
             raise NotImplementedError
-        
+
         self.slot_attention = SlotAttentionWMask(
             in_features=self.enc_out_channels,
             num_iterations=self.num_iterations,
@@ -210,8 +211,7 @@ class STEVE(StoSAVi):
         ckp_path = self.dvae_dict['dvae_ckp_path']
         assert ckp_path, 'Please provide pretrained dVAE weight'
         ckp = torch.load(ckp_path, map_location='cpu')
-        print(ckp)
-        self.dvae.load_state_dict(ckp['state_dict'])
+        self.dvae.load_state_dict(delete_model_from_state_dict(ckp['state_dict']))
         # fix dVAE
         for p in self.dvae.parameters():
             p.requires_grad = False
@@ -242,7 +242,7 @@ class STEVE(StoSAVi):
         _, logits = self.decoder.generate(
             slots, steps=self.num_patches, sample=False)
         # [B, patch_size**2, vocab_size] --> [B, vocab_size, h, w]
-        logits = logits.transpose(2, 1).\
+        logits = logits.transpose(2, 1). \
             unflatten(-1, (self.h, self.w)).contiguous().cuda()
         z_logits = F.log_softmax(logits, dim=1)
         z = gumbel_softmax(z_logits, 0.1, hard=False, dim=1)
@@ -261,7 +261,7 @@ class STEVE(StoSAVi):
 
         if self.use_inverse_actions_loss:
             self.inv_model = InverseModel(**self.inverse_dict)
-        
+
     def encode(self, img, prev_slots=None):
         """Encode from img to slots."""
         B, T = img.shape[:2]
@@ -270,24 +270,25 @@ class STEVE(StoSAVi):
         encoder_out = self._get_encoder_out(img)
         encoder_out = encoder_out.unflatten(0, (B, T))
         # `encoder_out` has shape: [B, T, H*W, out_features]
-        
+
         slot_inits = None
 
         # apply SlotAttn on video frames via reusing slots
         all_slots, all_masks = [], []
         for idx in range(T):
-            
+
             # init
             if prev_slots is None:
                 if self.sa_init == 'shared_gaussian':
-                    slot_inits = torch.randn(B, self.num_slots, self.slot_size).type_as(encoder_out) * torch.exp(self.slot_log_sigma) + self.slot_mu
+                    slot_inits = torch.randn(B, self.num_slots, self.slot_size).type_as(encoder_out) * torch.exp(
+                        self.slot_log_sigma) + self.slot_mu
                 elif self.sa_init == 'embedding':
                     mu = self.slots_init.weight.expand(B, -1, -1)
                     z = torch.randn_like(mu).type_as(encoder_out)
                     slot_inits = mu + z * self.sa_init_sigma * mu.detach()
                 elif self.sa_init == 'param':
                     slot_inits = self.slots_init.repeat(B, 1, 1)
-    
+
                 latents = slot_inits
             else:
                 latents = self.predictor(prev_slots)  # [B, N, C]
@@ -402,14 +403,11 @@ class STEVE(StoSAVi):
             'pred_token_id': pred_token_id,
             'target_token_id': target_token_id,
         })
-        
-        if self.use_slots_correlation_loss or self.use_cossine_similarity_loss:
-            out_dict['slots'] = in_slots
 
         # decode image for loss computing
         if self.use_img_recon_loss:
             out_dict['gt_img'] = img.flatten(0, 1)  # [B*T, C, H, W]
-            logits = pred_token_id.transpose(2, 1).\
+            logits = pred_token_id.transpose(2, 1). \
                 unflatten(-1, (self.h, self.w)).contiguous()  # [B*T, S, h, w]
             z_logits = F.log_softmax(logits, dim=1)
             z = gumbel_softmax(z_logits, tau=0.1, hard=False, dim=1)
@@ -424,14 +422,13 @@ class STEVE(StoSAVi):
     def eval(self):
         return self
 
-    
     def calc_train_loss(self, data_dict, out_dict):
         """Compute loss that are general for SlotAttn models."""
         pred_token_id = out_dict['pred_token_id'].flatten(0, 1)
         slots = out_dict['slots']
         target_token_id = out_dict['target_token_id'].flatten(0, 1)
         token_recon_loss = F.cross_entropy(pred_token_id, target_token_id)
-        
+
         loss_dict = {'token_recon_loss': token_recon_loss}
         if self.use_cossine_similarity_loss:
             slots_similarity = self._get_slots_cos_similarity(slots)
@@ -445,11 +442,12 @@ class STEVE(StoSAVi):
             recon_loss = F.mse_loss(recon_img, gt_img)
             loss_dict['img_recon_loss'] = recon_loss
         if self.use_inverse_actions_loss:
-            in_slots = einops.rearrange(slots, 'b t s d -> b t (s d)')
-            start_slots = in_slots[:, :, :-1]
-            target_slots = in_slots[:, :, 1:]
-            pred_actions = self.inv_model(start_slots, target_slots)
-            print(pred_actions.shape)
-            actions = data_dict['actions']
-            loss_dict['inverse_actions_loss'] = F.cross_entropy(actions)
+            B, T, *_ = slots.shape
+            if T > 1:
+                in_slots = einops.rearrange(slots, 'b t s d -> b t (s d)')
+                start_slots = einops.rearrange(in_slots[:, :-1, :], 'b t d -> (b t) d')
+                target_slots = einops.rearrange(in_slots[:, 1:, :], 'b t d -> (b t) d')
+                pred_actions = self.inv_model(start_slots, target_slots)
+                actions = data_dict['actions']
+                loss_dict['inverse_actions_loss'] = F.cross_entropy(pred_actions, actions[:, :-1].reshape(-1))
         return loss_dict

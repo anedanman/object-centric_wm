@@ -2,12 +2,13 @@ import attrs
 
 from configs.core.training_config import TrainingConfig
 from configs.dvae.utils import register_dvae_config
+from configs.dvae.dvae_base import DVAEBaseConfig
 
 
 @register_dvae_config('shapes')
-class DVAEShapesConfig(TrainingConfig):
+class DVAEShapesConfig(DVAEBaseConfig):
     project = "SlotFormer"
-    run_name = "DVAE Base"
+    run_name = "DVAE Inverse Actions"
 
     accelerator: str = 'gpu'
     devices = 1
@@ -15,7 +16,7 @@ class DVAEShapesConfig(TrainingConfig):
     # data settings
     dataset = 'shapes'
     data_root = './data/shapes'
-    n_sample_frames = 1  # train on video clips of 6 frames
+    n_sample_frames = 6
     frame_offset = 1  # no offset
     video_len = 100
     train_batch_size = 128
@@ -37,4 +38,8 @@ class DVAEShapesConfig(TrainingConfig):
     final_tau = 0.1
     tau_decay_pct = 0.15
 
-    next_actions = False
+    loss_dict = dict(
+        use_inverse_actions_loss=True
+    )
+
+    next_actions = True

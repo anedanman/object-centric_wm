@@ -15,7 +15,7 @@ class STEVEBaseConfig(TrainingConfig):
     val_batch_size = 32
     num_workers = 1
     n_samples = 4
-    max_epochs=10
+    max_epochs = 10
 
     dec_lr = 3e-5
     inv_lr = 1e-4
@@ -97,7 +97,7 @@ class STEVEBaseConfig(TrainingConfig):
     )
 
     inverse_dict = dict(
-        embedding_size=slot_size*slot_dict['num_slots'],
+        embedding_size=slot_size * slot_dict['num_slots'],
         action_space_size=20,
         inverse_layers=3,
         inverse_units=64,
@@ -107,6 +107,20 @@ class STEVEBaseConfig(TrainingConfig):
     losses_weights = {}
 
     next_actions = False
+    recon_video = False
+
+    def get_model_config(self):
+        return dict(
+            resolution=self.resolution,
+            clip_len=self.input_frames,
+            inverse_dict=self.inverse_dict,
+            loss_dict=self.loss_dict,
+            pred_dict=self.pred_dict,
+            dec_dict=self.dec_dict,
+            enc_dict=self.enc_dict,
+            dvae_dict=self.dvae_dict,
+            slot_dict=self.slot_dict,
+        )
 
 
 

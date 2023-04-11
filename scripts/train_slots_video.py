@@ -16,8 +16,8 @@ if __name__ == "__main__":
 
 
 
-    wandb_logger = WandbLogger(project=config.project, name=config.run_name, log_model='all')
-    checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoint/{config.run_name}", save_on_train_epoch_end=True, save_top_k=config.max_epochs)
+    wandb_logger = WandbLogger(save_dir=f'checkpoint/{config.run_name}', project=config.project, name=config.run_name, log_model='all')
+    checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoint/{config.run_name}", save_on_train_epoch_end=True, save_top_k=3, monitor='val/total_loss', )
     lr_callback = LearningRateMonitor(logging_interval='step')
     tqdm_callback = TQDMProgressBar(refresh_rate=5)
 
@@ -25,6 +25,7 @@ if __name__ == "__main__":
         default_root_dir=f"checkpoint/{config.run_name}",
         logger=wandb_logger,
         accelerator=config.accelerator,
+        log_every_n_steps=5,
         devices=config.devices,
         strategy=strategy,
         precision=precision,

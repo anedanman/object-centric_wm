@@ -13,6 +13,7 @@ from registry import Registry
 def compact(l):
     return list(filter(None, l))
 
+
 def register_dataset(name: str):
     def decorator(dataset_getter):
         registry = Registry()

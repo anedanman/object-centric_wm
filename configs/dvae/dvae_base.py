@@ -11,8 +11,8 @@ class DVAEBaseConfig(TrainingConfig):
     n_sample_frames = 1  # train on video clips of 6 frames
     frame_offset = 1  # no offset
     video_len = 100
-    train_batch_size = 32
-    val_batch_size = 32
+    train_batch_size = 50
+    val_batch_size = 50
     num_workers = 1
     n_samples = 4
     max_epochs = 10
@@ -29,4 +29,10 @@ class DVAEBaseConfig(TrainingConfig):
     init_tau = 1.
     final_tau = 0.1
     tau_decay_pct = 0.15
+
+    loss_dict = dict(
+        use_inverse_actions_loss=False
+    )
+
+    next_actions = False
 

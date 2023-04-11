@@ -1,4 +1,4 @@
-from configs.slotformer import SlotFormerBaseConfig
+from configs.slotformer.slotformer_base import SlotFormerBaseConfig
 from models.slotformer import SlotFormer
 from models.steve_slotformer import STEVESlotFormer
 
@@ -13,3 +13,4 @@ def get_slotformer(config: SlotFormerBaseConfig):
         return SlotFormer(**params)
     else:
         raise ValueError(f"Slot encoder {slots_encoder} is not supported")
+    

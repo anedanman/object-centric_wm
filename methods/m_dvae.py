@@ -104,7 +104,7 @@ class DVAEMethod(LightningModule):
         self._log_step(loss_out, prefix='train')
         return loss_out['total_loss']
 
-    def validation_step(self, data_batch, k):
+    def validation_step(self, data_batch):
         model_out = self.model(data_batch)
         loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss_out['total_loss'] = self.resolve_loss(loss_out)

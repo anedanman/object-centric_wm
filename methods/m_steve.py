@@ -1,10 +1,11 @@
 from typing import Optional, Dict
+import os
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from pytorch_lightning import LightningModule
-from pytorch_lightning.loggers import wandb
+import wandb
 from torch.utils.data import DataLoader
 import torchvision.utils as vutils
 
@@ -25,7 +26,7 @@ class STEVEMethod(LightningModule):
         super().__init__()
         self.config: STEVEBaseConfig = get_steve_config(config_name)
         self.video_logged = False
-        self.model = STEVE()
+        self.model = STEVE(**self.config.get_model_config())
 
     @property
     def vis_fps(self):
@@ -41,11 +42,10 @@ class STEVEMethod(LightningModule):
             data_dict = {f'{prefix}/{key}': val for key, val in data_dict.items()}
         self.log_dict(data_dict)
 
-    def training_step(self, data_batch):
+    def training_step(self, data_batch, k):
         model_out = self.model(data_batch)
         loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss_out['total_loss'] = self.resolve_loss(loss_out)
-        loss_out['tau_gumbell'] = self.model.tau
         self._log_step(loss_out, prefix='train')
         return loss_out['total_loss']
 
@@ -54,9 +54,6 @@ class STEVEMethod(LightningModule):
         loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss_out['total_loss'] = self.resolve_loss(loss_out)
         self._log_step(loss_out, prefix='val')
-        if not self.video_logged:
-            self.video_logged = True
-            self._sample_video()
         return loss_out['total_loss']
 
     @staticmethod
@@ -117,6 +114,11 @@ class STEVEMethod(LightningModule):
         ])  # [T, 3, H, (num_slots+1)*W]
         return save_video
 
+    def on_train_epoch_end(self, *args, **kwarg):
+        checkpoints_path = os.path.join(os.path.dirname(__file__), '..',
+                                        f'checkpoint/{self.config.run_name}/epochs/model_{self.current_epoch}.pt')
+        torch.save(self.model.state_dict(), checkpoints_path)
+
     @torch.no_grad()
     def _sample_video(self):
         """model is a simple nn.Module, not warpped in e.g. DataParallel."""
@@ -138,7 +140,7 @@ class STEVEMethod(LightningModule):
             masks_video = self._make_masks_video(video, masks)
             results.append(save_video)
             masks_result.append(masks_video)
-            if not self.recon_video:
+            if not self.config.recon_video:
                 continue
 
             # reconstruct the video by autoregressively generating patch tokens
@@ -176,12 +178,11 @@ class STEVEMethod(LightningModule):
 
         log_dict = {'val/video': self._convert_video(results),
                     'val/masks_video': self._convert_video(masks_result)}
-        if self.recon_video:
+        if self.config.recon_video:
             log_dict['val/recon_video'] = self._convert_video(recon_results)
         self.logger.experiment.log(log_dict, step=self.global_step)
         torch.cuda.empty_cache()
         self.model.testing = False
-
 
     @staticmethod
     def _pad_frame(video, target_T):
@@ -211,8 +212,8 @@ class STEVEMethod(LightningModule):
         sampled_idx = torch.arange(0, dst_len, dst_len // N)
         return sampled_idx
 
-    def on_validation_end(self):
-        self.video_logged = False
+    def on_validation_epoch_end(self, *args, **kwargs):
+        self._sample_video()
 
     def resolve_loss(self, loss_dict: Dict[str, torch.Tensor]):
         loss = 0
@@ -226,11 +227,17 @@ class STEVEMethod(LightningModule):
         self.train_dataset, self.val_dataset = dataset_getter(self.config)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.config.train_batch_size, shuffle=True)
+        return DataLoader(self.train_dataset,
+                          batch_size=self.config.train_batch_size,
+                          shuffle=True,
+                          pin_memory=True,
+                          num_workers=self.config.num_workers)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.config.val_batch_size)
-
+        return DataLoader(self.val_dataset,
+                          batch_size=self.config.val_batch_size,
+                          pin_memory=True,
+                          num_workers=self.config.num_workers)
 
     def configure_optimizers(self):
         # STEVE uses different lr for its Transformer decoder and other parts
@@ -252,7 +259,6 @@ class STEVEMethod(LightningModule):
             },
         ]
 
-
         optimizer = get_optimizer(self.config.optimizer)(params,
                                                          weight_decay=self.config.weight_decay,
                                                          lr=self.config.lr)
@@ -263,7 +269,7 @@ class STEVEMethod(LightningModule):
             optimizer,
             total_steps,
             max_lr=(self.config.lr, self.config.dec_lr),
-            min_lr=0,
+            min_lr=(0., 0.),
             warmup_steps=warmup_steps,
         )
 

@@ -23,11 +23,11 @@ from utils.steve_utils import cosine_anneal
 
 @register_method('dvae')
 class DVAEMethod(LightningModule):
-    def __init__(self, config_name: str):
+    def __init__(self, config_name: str, viz_only = False):
         super().__init__()
         self.config: DVAEBaseConfig = get_dvae_config(config_name)
-        self.video_logged = False
         self.model = dVAE(self.config.vocab_size)
+        self.viz_only = viz_only
 
     @staticmethod
     def _make_video(video, pred_video):
@@ -109,9 +109,6 @@ class DVAEMethod(LightningModule):
         loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss_out['total_loss'] = self.resolve_loss(loss_out)
         self._log_step(loss_out, prefix='val')
-        if not self.video_logged:
-            self.video_logged = True
-            self._sample_video()
         return loss_out['total_loss']
 
     @staticmethod
@@ -142,8 +139,8 @@ class DVAEMethod(LightningModule):
         sampled_idx = torch.arange(0, dst_len, dst_len // N)
         return sampled_idx
 
-    def on_validation_end(self):
-        self.video_logged = False
+    def on_validation_epoch_end(self, *args, **kwargs):
+        self._sample_video()
 
     def resolve_loss(self, loss_dict: Dict[str, torch.Tensor]):
         loss = 0

@@ -35,4 +35,4 @@ class DVAEBaseConfig(TrainingConfig):
     )
 
     next_actions = False
-
+    reverse_color = True

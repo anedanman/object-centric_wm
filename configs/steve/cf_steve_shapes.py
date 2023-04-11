@@ -28,8 +28,6 @@ class STEVEShapesConfig(STEVEBaseConfig):
     warmup_steps_pct = 0.05
     clip_grad = 0.08
 
-    # model configs
-    resolution = (64, 64)
 
     resolution = (64, 64)
     input_frames = n_sample_frames
@@ -108,6 +106,7 @@ class STEVEShapesConfig(STEVEBaseConfig):
 
     next_actions = True
     recon_video = True
+    reverse_color = True
 
 
 

@@ -183,6 +183,7 @@ class STEVEMethod(LightningModule):
         self.logger.experiment.log(log_dict, step=self.global_step)
         torch.cuda.empty_cache()
         self.model.testing = False
+        return log_dict
 
     @staticmethod
     def _pad_frame(video, target_T):

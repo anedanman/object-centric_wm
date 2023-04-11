@@ -21,10 +21,9 @@ from utils.optim import get_optimizer, filter_wd_parameters
 
 @register_method('slotformer')
 class SlotFormerMethod(LightningModule):
-    def __init__(self, config_name: str):
+    def __init__(self, config_name: str, viz_only: str):
         super().__init__()
         self.config: SlotFormerBaseConfig = get_slotformer_config(config_name)
-        self.video_logged = False
         self.model = get_slotformer(self.config)
 
     def _make_video_grid(self, imgs, recon_combined, recons, masks):
@@ -106,7 +105,7 @@ class SlotFormerMethod(LightningModule):
                 out[i].cpu(),
                 nrow=out.shape[1],
                 # pad white if using black background
-                padding=3,
+                padding=5,
                 pad_value=1 if getattr(self.config, 'reverse_color', False) else 0,
             ) for i in range(img.shape[0])
         ])  # [T, 3, H, 3*W]
@@ -217,10 +216,10 @@ class SlotFormerMethod(LightningModule):
         loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss_out['total_loss'] = self.resolve_loss(loss_out)
         self._log_step(loss_out, prefix='val')
-        if not self.video_logged:
-            self.video_logged = True
-            self._sample_video()
         return loss_out['total_loss']
+
+    def on_validation_epoch_end(self, *args, **kwargs):
+        self._sample_video()
 
     @staticmethod
     def _pad_frame(video, target_T):

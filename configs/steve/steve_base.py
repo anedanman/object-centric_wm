@@ -23,18 +23,10 @@ class STEVEBaseConfig(TrainingConfig):
     warmup_steps_pct = 0.05
     clip_grad = 0.08
 
-    # model configs
-    resolution = (64, 64)
-    vocab_size = 4096  # codebook size
-
-    # temperature for gumbel softmax
-    # decay from 1.0 to 0.1 in the first 15% of total steps
-    init_tau = 1.
-    final_tau = 0.1
-    tau_decay_pct = 0.15
-
     resolution = (64, 64)
     input_frames = n_sample_frames
+
+
 
     # Slot Attention
     slot_size = 128
@@ -108,6 +100,7 @@ class STEVEBaseConfig(TrainingConfig):
 
     next_actions = False
     recon_video = False
+    reverse_color = True
 
     def get_model_config(self):
         return dict(

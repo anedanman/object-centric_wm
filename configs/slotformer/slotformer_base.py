@@ -26,6 +26,8 @@ class SlotFormerBaseConfig(TrainingConfig):
     resolution = (64, 64)
     input_frames = 15  # burn-in frames
 
+    pretrained = ''
+
     num_slots = 6
     slot_size = 128
     slot_dict = dict(
@@ -79,6 +81,8 @@ class SlotFormerBaseConfig(TrainingConfig):
     )
 
     loss_decay_pct: int = 0
+
+    reverse_color = True
 
     def get_model_config_dict(self):
         cfg = dict(

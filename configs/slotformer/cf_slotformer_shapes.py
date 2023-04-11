@@ -91,3 +91,4 @@ class SlotFormerShapes(SlotFormerBaseConfig):
     )
 
     next_actions = True
+    reverse_color = True

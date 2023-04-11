@@ -334,7 +334,7 @@ class TransformerActionEncoderSC(nn.Module):
                  dropout: float = 0,
                  num_layers: int = 1):
         super().__init__()
-        
+
         self.num_layers = num_layers
 
         layers = []
@@ -354,7 +354,7 @@ class TransformerActionEncoderSC(nn.Module):
     def forward(self, x, actions):
         for i, layer in enumerate(self.layers):
             if i % 2 == 0:
-                x = layer(x)
+                x = x + layer(x)
             else:
-                x = layer(x, actions)
+                x = x + layer(x, actions)
         return x

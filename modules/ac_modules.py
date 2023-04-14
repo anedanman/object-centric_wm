@@ -6,8 +6,6 @@ import torch.distributions as distributions
 from torch.distributions import constraints
 from torch.distributions.transformed_distribution import TransformedDistribution
 
-from models import TanhBijector, SampleDist
-
 from utils import spatial_broadcast, spatial_flatten
 
 _str_to_activation = {
@@ -113,3 +111,67 @@ class OC_ActionDecoder(nn.Module):
     def add_exploration(self, action, action_noise=0.3):
 
         return torch.clamp(distributions.Normal(action, action_noise).rsample(), -1, 1)
+
+
+class TanhBijector(distributions.Transform):
+
+    def __init__(self):
+        super().__init__()
+        self.bijective = True
+        self.domain = constraints.real
+        self.codomain = constraints.interval(-1.0, 1.0)
+
+    @property
+    def sign(self): return 1.
+
+    def _call(self, x): return torch.tanh(x)
+
+    def atanh(self, x):
+        return 0.5 * torch.log((1 + x) / (1 - x))
+
+    def _inverse(self, y: torch.Tensor):
+        y = torch.where(
+            (torch.abs(y) <= 1.),
+            torch.clamp(y, -0.99999997, 0.99999997),
+            y)
+        y = self.atanh(y)
+        return y
+
+    def log_abs_det_jacobian(self, x, y):
+        return 2. * (np.log(2) - x - F.softplus(-2. * x))
+    
+
+class SampleDist:
+
+    def __init__(self, dist, samples=100):
+        self._dist = dist
+        self._samples = samples
+
+    @property
+    def name(self):
+        return 'SampleDist'
+
+    def __getattr__(self, name):
+        return getattr(self._dist, name)
+
+    def mean(self):
+        sample = self._dist.rsample(self._samples)
+        return torch.mean(sample, 0)
+
+    def mode(self):
+        dist = self._dist.expand((self._samples, *self._dist.batch_shape))
+        sample = dist.rsample()
+        logprob = dist.log_prob(sample)
+        batch_size = sample.size(1)
+        feature_size = sample.size(2)
+        indices = torch.argmax(logprob, dim=0).reshape(1, batch_size, 1).expand(1, batch_size, feature_size)
+        return torch.gather(sample, 0, indices).squeeze(0)
+
+    def entropy(self):
+        dist = self._dist.expand((self._samples, *self._dist.batch_shape))
+        sample = dist.rsample()
+        logprob = dist.log_prob(sample)
+        return -torch.mean(logprob, 0)
+
+    def sample(self):
+        return self._dist.sample()

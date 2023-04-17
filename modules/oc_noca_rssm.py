@@ -29,7 +29,7 @@ class OC_NOCA_RSSM(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.action_size = args.action_size
-        self.slots_size  = args.slots_size
+        self.slot_size  = args.slot_size
         self.hidden_size = args.hidden_size
         self.num_slots = args.num_slots
         self.vocab_size = args.vocab_size
@@ -37,7 +37,7 @@ class OC_NOCA_RSSM(nn.Module):
         self.image_size = args.image_size
         self.gen_len = (self.image_size // 4) ** 2
 
-        self.dictionary = OneHotDictionary(self.vocab_size, self.slots_size)
+        self.dictionary = OneHotDictionary(self.vocab_size, self.slot_size)
         self.tf_decoder = TransformerDecoder(
             args.num_dec_blocks, self.gen_len, args.d_model, args.num_heads, args.dropout
         )

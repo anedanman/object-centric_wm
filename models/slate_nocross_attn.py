@@ -27,7 +27,7 @@ class SlateNoCAWM(pl.LightningModule):
         self.save_hyperparameters()
         
         self.rssm = OC_NOCA_RSSM(args)
-        self.actor = OC_ActionDecoder(actison_size = self.action_size,
+        self.actor = OC_ActionDecoder(actison_size = args.action_size,
             slots_size=args.slot_size,
             units = args.num_units,
             n_layers=3,

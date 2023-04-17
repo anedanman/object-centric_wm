@@ -21,47 +21,47 @@ def preprocess_obs(obs):
 
 
 class SlateNoCAWM(pl.LightningModule):
-    def __init__(self, hparams, env):
+    def __init__(self, args, env):
         super(SlateNoCAWM, self).__init__()
-        self.hparams = hparams
+        self.args = args
         self.save_hyperparameters()
         
-        self.rssm = OC_NOCA_RSSM(hparams)
+        self.rssm = OC_NOCA_RSSM(args)
         self.actor = OC_ActionDecoder(actison_size = self.action_size,
-            slots_size=hparams.slot_size,
-            units = hparams.num_units,
+            slots_size=args.slot_size,
+            units = args.num_units,
             n_layers=3,
-            activation=hparams.dense_activation_function).to(self.device)
+            activation=args.dense_activation_function).to(self.device)
         self.reward_model = OC_DenseDecoder(
-            slots_size=hparams.slot_size,
+            slots_size=args.slot_size,
             output_shape = (1,),
             n_layers = 2,
-            units=self.hparams.num_units,
-            activation= self.hparams.dense_activation_function,
+            units=self.args.num_units,
+            activation= self.args.dense_activation_function,
             dist = 'normal').to(self.device)
         self.value_model  = OC_DenseDecoder(
-            slots_size=hparams.slot_size,
+            slots_size=args.slot_size,
             output_shape = (1,),
             n_layers = 3,
-            units = self.hparams.num_units,
-            activation= self.hparams.dense_activation_function,
+            units = self.args.num_units,
+            activation= self.args.dense_activation_function,
             dist = 'normal').to(self.device) 
         
         self.env = env
         obs_shape = self.env.reset()['image'].shape
-        self.obs_encoder = dVAE_encoder(hparams.vocab_size, obs_shape)
-        self.obs_decoder = dVAE_decoder(hparams.vocab_size, obs_shape)
+        self.obs_encoder = dVAE_encoder(args.vocab_size, obs_shape)
+        self.obs_decoder = dVAE_decoder(args.vocab_size, obs_shape)
 
-        self.dvae_optim = optim.Adam(list(self.obs_encoder.parameters()) + list(self.obs_decoder.parameters()), lr=hparams.dvae_lr)
-        self.rssm_optim = optim.Adam(self.rssm.parameters(), lr=hparams.rssm_lr)
-        self.actor_optim = optim.Adam(self.actor.parameters(), lr=hparams.actor_lr)
-        self.value_optim = optim.Adam(self.value_model.parameters(), lr=hparams.value_lr)
-        self.reward_optim = optim.Adam(self.reward_model.parameters(), lr=hparams.reward_lr)
+        self.dvae_optim = optim.Adam(list(self.obs_encoder.parameters()) + list(self.obs_decoder.parameters()), lr=args.dvae_lr)
+        self.rssm_optim = optim.Adam(self.rssm.parameters(), lr=args.rssm_lr)
+        self.actor_optim = optim.Adam(self.actor.parameters(), lr=args.actor_lr)
+        self.value_optim = optim.Adam(self.value_model.parameters(), lr=args.value_lr)
+        self.reward_optim = optim.Adam(self.reward_model.parameters(), lr=args.reward_lr)
 
-        self.replay_buffer = ReplayBuffer(hparams.buffer_size, obs_shape, hparams.action_size,
-                                                    hparams.train_seq_len, hparams.batch_size)
+        self.replay_buffer = ReplayBuffer(args.buffer_size, obs_shape, args.action_size,
+                                                    args.train_seq_len, args.batch_size)
         
-        self.collect_random_episodes(self.env, hparams.seed_steps)
+        self.collect_random_episodes(self.env, args.seed_steps)
         self.step = self.replay_buffer.steps
         self.automatic_optimization=False
 
@@ -71,8 +71,8 @@ class SlateNoCAWM(pl.LightningModule):
         obs_embed = self.obs_encoder(obs.reshape(L*B, C, H, W))
         _, voc, h_enc, w_enc = obs_embed.size()
         obs_embed = obs_embed.reshape(L, B, voc, h_enc, w_enc)
-        init_state = self.rssm.init_state(self.hparams.batch_size, self.device)
-        prior, self.posterior = self.rssm.observe_rollout(obs_embed, acs[:-1], nonterms[:-1], init_state, self.hparams.train_seq_len - 1)
+        init_state = self.rssm.init_state(self.args.batch_size, self.device)
+        prior, self.posterior = self.rssm.observe_rollout(obs_embed, acs[:-1], nonterms[:-1], init_state, self.args.train_seq_len - 1)
         target = self.posterior['tokens'][1:].permute(0, 1, 3, 4, 2).flatten(start_dim=2, end_dim=3)
         cross_entropy = -(target * prior['logits'][1:]).flatten(start_dim=2).sum(-1).mean()
         _, _, voc, h_enc, w_enc = self.posterior['tokens'].size()
@@ -90,7 +90,7 @@ class SlateNoCAWM(pl.LightningModule):
             posterior = self.rssm.detach_state(self.rssm.seq_to_batch(self.posterior))
 
         with FreezeParameters(self.world_model_modules):
-            imag_states = self.rssm.imagine_rollout(self.actor, posterior, self.hparams.imagine_horizon)
+            imag_states = self.rssm.imagine_rollout(self.actor, posterior, self.args.imagine_horizon)
 
         self.imag_feat = imag_states['slots']
 
@@ -100,14 +100,14 @@ class SlateNoCAWM(pl.LightningModule):
 
             imag_rews = imag_rew_dist.mean
             imag_vals = imag_val_dist.mean
-            if self.hparams.use_disc_model:
+            if self.args.use_disc_model:
                 imag_disc_dist = self.discount_model(self.imag_feat)
                 discounts = imag_disc_dist.mean().detach()
             else:
-                discounts =  self.hparams.discount * torch.ones_like(imag_rews).detach()
+                discounts =  self.args.discount * torch.ones_like(imag_rews).detach()
 
         self.returns = compute_return(imag_rews[:-1], imag_vals[:-1],discounts[:-1] \
-                                         ,self.hparams.td_lambda, imag_vals[-1])
+                                         ,self.args.td_lambda, imag_vals[-1])
         
         discounts = torch.cat([torch.ones_like(discounts[:1]), discounts[1:-1]], 0)
         self.discounts = torch.cumprod(discounts, 0).detach()
@@ -133,29 +133,29 @@ class SlateNoCAWM(pl.LightningModule):
         cross_entropy, mse, rew_loss = self.world_model_loss(obs, acs, rews, nonterms)
         self.dvae_optim.zero_grad()
         mse.backward()
-        nn.utils.clip_grad_norm_(list(self.obs_encoder.parameters()) + list(self.obs_decoder.parameters()), self.hparams.grad_clip_norm)
+        nn.utils.clip_grad_norm_(list(self.obs_encoder.parameters()) + list(self.obs_decoder.parameters()), self.args.grad_clip_norm)
         self.dvae_optim.step()
 
         self.rssm_optim.zero_grad()
         cross_entropy.backward()
-        nn.utils.clip_grad_norm_(self.rssm.parameters(), self.hparams.grad_clip_norm)
+        nn.utils.clip_grad_norm_(self.rssm.parameters(), self.args.grad_clip_norm)
         self.rssm_optim.step()
 
         self.reward_optim.zero_grad()
         rew_loss.backward()
-        nn.utils.clip_grad_norm_(self.reward_model.parameters(), self.hparams.grad_clip_norm)
+        nn.utils.clip_grad_norm_(self.reward_model.parameters(), self.args.grad_clip_norm)
         self.reward_optim.step()
 
         actor_loss = self.actor_loss()
         self.actor_opt.zero_grad()
         actor_loss.backward()
-        nn.utils.clip_grad_norm_(self.actor.parameters(), self.hparams.grad_clip_norm)
+        nn.utils.clip_grad_norm_(self.actor.parameters(), self.args.grad_clip_norm)
         self.actor_opt.step()
 
         value_loss = self.value_loss()
         self.value_opt.zero_grad()
         value_loss.backward()
-        nn.utils.clip_grad_norm_(self.value_model.parameters(), self.hparams.grad_clip_norm)
+        nn.utils.clip_grad_norm_(self.value_model.parameters(), self.args.grad_clip_norm)
         self.value_opt.step()
 
         return cross_entropy.item(), mse.item(), rew_loss.item(), actor_loss.item(), value_loss.item()
@@ -168,7 +168,7 @@ class SlateNoCAWM(pl.LightningModule):
         features = posterior['slots']
         action = self.actor(features, deter=not explore) 
         if explore:
-            action = self.actor.add_exploration(action, self.hparams.action_noise)
+            action = self.actor.add_exploration(action, self.args.action_noise)
         return  posterior, action, prior, attn
     
     def act_and_collect_data(self, collect_steps):
@@ -252,18 +252,18 @@ class SlateNoCAWM(pl.LightningModule):
 
     def train_step(self, batch):
         cross_entropy_mean, mse_mean, rew_loss_mean, actor_loss_mean, value_loss_mean = 0, 0, 0, 0, 0
-        for _ in range(self.hparams.update_steps):
+        for _ in range(self.args.update_steps):
             cross_entropy, mse, rew_loss, actor_loss, value_loss = self.update(batch)
             cross_entropy_mean += cross_entropy
             mse_mean += mse
             rew_loss_mean += rew_loss
             actor_loss_mean += actor_loss
             value_loss_mean += value_loss
-        cross_entropy_mean /= self.hparams.update_steps
-        mse_mean /= self.hparams.update_steps
-        rew_loss_mean /= self.hparams.update_steps
-        actor_loss_mean /= self.hparams.update_steps
-        value_loss_mean /= self.hparams.update_steps
+        cross_entropy_mean /= self.args.update_steps
+        mse_mean /= self.args.update_steps
+        rew_loss_mean /= self.args.update_steps
+        actor_loss_mean /= self.args.update_steps
+        value_loss_mean /= self.args.update_steps
         self.log({
             'cross_entropy': cross_entropy_mean,
             'mse': mse_mean,
@@ -272,7 +272,7 @@ class SlateNoCAWM(pl.LightningModule):
             'value_loss': value_loss_mean,
             'loss': cross_entropy_mean + mse_mean + rew_loss_mean + actor_loss_mean + value_loss_mean,
         })
-        rews = self.act_and_collect_data(self.env, self.hparams.collect_steps)
+        rews = self.act_and_collect_data(self.env, self.args.collect_steps)
         self.log({
             'mean_reward': np.mean(rews),
             'max_reward': np.max(rews),

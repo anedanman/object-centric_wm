@@ -6,7 +6,6 @@ import torch.distributions as distributions
 from torch.distributions import constraints
 from torch.distributions.transformed_distribution import TransformedDistribution
 
-from utils import spatial_broadcast, spatial_flatten
 
 _str_to_activation = {
     'relu': nn.ReLU(),

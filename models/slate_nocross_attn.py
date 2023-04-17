@@ -341,6 +341,9 @@ class SlateNoCAWM(pl.LightningModule):
         imag_grid = visualize(observations, imag_obs, imag_attns)
 
         return gen_grid, imag_grid
+    
+    def configure_optimizers(self):
+        return [self.rssm_optim, self.actor_optim, self.value_optim, self.dvae_optim, self.reward_optim]
 
 
 def visualize(image, recon_orig, attns, N=256):

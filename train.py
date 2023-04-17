@@ -21,7 +21,7 @@ def main(args):
         max_epochs=args.total_steps // (args.steps_log*args.collect_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps
         deterministic=False
     )
-    trainer.fit(model, train_dataloader=dummy_train_loader, val_dataloaders=dummy_val_loader)
+    trainer.fit(model, dummy_train_loader, dummy_val_loader)
     wandb.finish()
     model.save(f'./{args.name}.pt')
 

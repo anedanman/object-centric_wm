@@ -124,7 +124,7 @@ class SlateNoCAWM(pl.LightningModule):
         return value_loss
     
     def train_one_batch(self):
-        obs, acs, rews, terms = self.data_buffer.sample()
+        obs, acs, rews, terms = self.replay_buffer.sample()
         obs  = torch.tensor(obs, dtype=torch.float32).to(self.device)
         acs  = torch.tensor(acs, dtype=torch.float32).to(self.device).unsqueeze(-2)
         rews = torch.tensor(rews, dtype=torch.float32).to(self.device).unsqueeze(-1)
@@ -185,7 +185,7 @@ class SlateNoCAWM(pl.LightningModule):
                 posterior, action, _, _ = self.act_with_world_model(obs, prev_state, prev_action, explore=True)
             action = action[0].cpu().numpy()
             next_obs, rew, done, _ = self.env.step(action)
-            self.data_buffer.add(obs, action, rew, done)
+            self.replay_buffer.add(obs, action, rew, done)
 
             episode_rewards[-1] += rew
 
@@ -212,7 +212,7 @@ class SlateNoCAWM(pl.LightningModule):
             action = self.env.action_space.sample()
             next_obs, rew, done, _ = self.env.step(action)
             
-            self.data_buffer.add(obs, action, rew, done)
+            self.replay_buffer.add(obs, action, rew, done)
             seed_episode_rews[-1] += rew
             if done:
                 obs = self.env.reset()

@@ -250,7 +250,7 @@ class SlateNoCAWM(pl.LightningModule):
         self.actor_opt.load_state_dict(checkpoint['actor_optimizer'])
         self.value_opt.load_state_dict(checkpoint['value_optimizer'])
 
-    def train_step(self, batch):
+    def training_step(self, batch):
         cross_entropy_mean, mse_mean, rew_loss_mean, actor_loss_mean, value_loss_mean = 0, 0, 0, 0, 0
         for _ in range(self.args.update_steps):
             cross_entropy, mse, rew_loss, actor_loss, value_loss = self.update(batch)
@@ -279,7 +279,7 @@ class SlateNoCAWM(pl.LightningModule):
             'min_reward': np.min(rews),
             'std_reward': np.std(rews),
         })
-        return None
+        return cross_entropy
     
     def validation_step(self, *args, **kwargs):
         gen_grid, imag_grid = self.eval_logs(256)

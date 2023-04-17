@@ -87,8 +87,10 @@ class OC_NOCA_RSSM(nn.Module):
         return prior, posterior, attns
     
     def imagine_step(self, prev_state, prev_action, nonterm=1.0):
-        prev_action = prev_action.reshape(*prev_state['slots'].shape[:-2], 1, -1)
-        # prev_action = torch.unsqueeze(prev_action, dim=-2)
+        # prev_action = prev_action.reshape(*prev_state['slots'].shape[:-2], 1, -1)
+        print('prev_action', prev_action.shape)
+        prev_action = torch.unsqueeze(prev_action, dim=-2)
+        print('prev_action', prev_action.shape)
         prev_action = self.act_fn(self.fc_action(prev_action))
             
         slots_a = torch.cat([prev_state['slots'], prev_action], dim=-2)

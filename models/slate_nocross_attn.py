@@ -175,7 +175,7 @@ class SlateNoCAWM(pl.LightningModule):
         obs = self.env.reset()
         done = False
         prev_state = self.rssm.init_state(1, self.device)
-        prev_action = torch.zeros(1, self.action_size).to(self.device)
+        prev_action = torch.zeros(1, self.args.action_size).to(self.device)
 
         episode_rewards = [0.0]
 
@@ -193,7 +193,7 @@ class SlateNoCAWM(pl.LightningModule):
                 obs = self.env.reset()
                 done = False
                 prev_state = self.rssm.init_state(1, self.device)
-                prev_action = torch.zeros(1, self.action_size).to(self.device)
+                prev_action = torch.zeros(1, self.args.action_size).to(self.device)
                 if i!= collect_steps-1:
                     episode_rewards.append(0.0)
             else:
@@ -299,7 +299,7 @@ class SlateNoCAWM(pl.LightningModule):
         obs = self.env.reset()
         done = False
         prev_state = self.rssm.init_state(1, self.device)
-        prev_action = torch.zeros(1, self.action_size).to(self.device)
+        prev_action = torch.zeros(1, self.args.action_size).to(self.device)
 
         episode_rewards = [0.0]
         prior = None
@@ -330,7 +330,7 @@ class SlateNoCAWM(pl.LightningModule):
                 obs = self.env.reset()
                 done = False
                 prev_state = self.rssm.init_state(1, self.device)
-                prev_action = torch.zeros(1, self.action_size).to(self.device)
+                prev_action = torch.zeros(1, self.args.action_size).to(self.device)
                 if i!= collect_steps-1:
                     episode_rewards.append(0.0)
             else:

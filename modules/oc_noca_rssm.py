@@ -71,19 +71,19 @@ class OC_NOCA_RSSM(nn.Module):
         prev_action: B x action_size
         obs_embed: B x vocab_size x H_enc x W_enc
         """
-        prior, _ = self.imagine_step(prev_state, prev_action, nonterm)
-
         z_logits = F.log_softmax(obs_embed, dim=1)
         B, _, H_enc, W_enc = z_logits.size()
         z_hard = gumbel_softmax(z_logits, hard=True, dim=1).detach()
 
         emb_input = self.z_hard2embed(z_hard)
 
-        slots, attns = self.slot_attn(emb_input[:, 1:], slots=prior['slots'])
+        slots, attns = self.slot_attn(emb_input[:, 1:], slots=prev_state['slots'])
         attns = attns.transpose(-1, -2)
         attns = attns.reshape(B, self.num_slots, 1, H_enc, W_enc).repeat_interleave(self.image_size // H_enc, dim=-2).repeat_interleave(self.image_size // W_enc, dim=-1)
 
         posterior = {'logits': z_logits, 'tokens': z_hard, 'slots': slots}
+        prior, _ = self.imagine_step(prev_state, prev_action, nonterm)
+
         return prior, posterior, attns
     
     def imagine_step(self, prev_state, prev_action, nonterm=1.0):

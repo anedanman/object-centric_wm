@@ -8,9 +8,9 @@ from utils.conv import conv2d, Conv2dBlock
 class dVAE_encoder(nn.Module):
     def __init__(self, vocab_size, img_size, hidden_size=32):
         super().__init__()
-
+        hidden_size=32
         self.encoder = nn.Sequential(
-            Conv2dBlock(img_size, hidden_size, 4, 4),
+            Conv2dBlock(3, hidden_size, 4, 4),
             Conv2dBlock(hidden_size, hidden_size, 1, 1),
             Conv2dBlock(hidden_size, hidden_size, 1, 1),
             Conv2dBlock(hidden_size, hidden_size, 1, 1),
@@ -27,7 +27,7 @@ class dVAE_encoder(nn.Module):
 class dVAE_decoder(nn.Module):
     def __init__(self, vocab_size, img_size, hidden_size=32):
         super().__init__()
-
+        hidden_size=32
         self.decoder = nn.Sequential(
             Conv2dBlock(vocab_size, hidden_size, 1),
             Conv2dBlock(hidden_size, hidden_size, 3, 1, 1),
@@ -40,7 +40,7 @@ class dVAE_decoder(nn.Module):
             Conv2dBlock(hidden_size, hidden_size, 1, 1),
             Conv2dBlock(hidden_size, hidden_size * 2 * 2, 1),
             nn.PixelShuffle(2),
-            conv2d(hidden_size, img_size, 1),
+            conv2d(hidden_size, 3, 1),
         )
     
     def forward(self, inputs):

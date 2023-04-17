@@ -61,7 +61,7 @@ class SlateNoCAWM(pl.LightningModule):
         self.replay_buffer = ReplayBuffer(args.buffer_size, obs_shape, args.action_size,
                                                     args.train_seq_len, args.batch_size)
         
-        self.collect_random_episodes(self.env, args.seed_steps)
+        self.collect_random_episodes(args.seed_steps)
         self.step = self.replay_buffer.steps
         self.automatic_optimization=False
 
@@ -272,7 +272,7 @@ class SlateNoCAWM(pl.LightningModule):
             'value_loss': value_loss_mean,
             'loss': cross_entropy_mean + mse_mean + rew_loss_mean + actor_loss_mean + value_loss_mean,
         })
-        rews = self.act_and_collect_data(self.env, self.args.collect_steps)
+        rews = self.act_and_collect_data(self.args.collect_steps)
         self.log({
             'mean_reward': np.mean(rews),
             'max_reward': np.max(rews),

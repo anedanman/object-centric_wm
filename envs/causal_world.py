@@ -15,9 +15,10 @@ class CausalWorldPush(gym.Env):
             camera_indicies=[0],
             normalize_observations=False
         )
+        self.image_size = image_size
         c,h,w = self.reset()['image'].shape
         self.observation_space = gym.spaces.MultiBinary((c,h,w))
-        self.image_size = image_size
+        
 
     @property
     def action_space(self):

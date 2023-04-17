@@ -32,6 +32,6 @@ class CausalWorldPush(gym.Env):
     
     def step(self, action):
         image, reward, done, info = self.env.step(action)
-        image = cv2.resize(image, dsize=(self.image_size, self.image_size), interpolation=cv2.INTER_CUBIC)
+        image = cv2.resize(image[0], dsize=(self.image_size, self.image_size), interpolation=cv2.INTER_CUBIC)
         obs = {"image": image.transpose(2, 0, 1)}
         return obs, reward, done, info

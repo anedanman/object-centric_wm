@@ -3,10 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as distributions
-from torch.distributions import constraints
-from torch.distributions.transformed_distribution import TransformedDistribution
-
-from modules.dynam import DynamicsTransformer
 from modules.slate_modules import TransformerDecoder, PositionalEncoding
 from modules.slot_attn import SlotAttentionEncoder
 

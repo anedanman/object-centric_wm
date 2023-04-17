@@ -2,21 +2,14 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import torch.optim as optim
-import torch.distributions as distributions
 import pytorch_lightning as pl
 import numpy as np
 import torchvision.utils as vutils
 import wandb
 
-from collections import OrderedDict
-
-from envs.atari import Atari
-from envs.crafter import CrafterEnv
-
 from utils.replay_buffer import ReplayBuffer
 from utils.params import FreezeParameters, compute_return
 
-from modules.oc_rssm import OC_RSSM
 from modules.oc_noca_rssm import OC_NOCA_RSSM
 from modules.ac_modules import OC_ActionDecoder, OC_DenseDecoder
 from modules.slate_modules import dVAE_encoder, dVAE_decoder

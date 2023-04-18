@@ -93,10 +93,10 @@ class OC_NOCA_RSSM(nn.Module):
         prev_action = self.act_fn(self.fc_action(prev_action))
         
         if prev_state['slots'] is None:
-            assert len(prev_action.shape) == 3
+            assert len(prev_action.shape) == 3, f"{prev_action.shape}"
             slots_a = prev_action
         else:
-            assert len(prev_action.shape) == len(prev_state['slots'].shape)
+            assert len(prev_action.shape) == len(prev_state['slots'].shape), f"{prev_action.shape}, {prev_state['slots'].shape}"
             slots_a = torch.cat([prev_state['slots'], prev_action], dim=-2)
         z_gen, logits = self.slots2tokens(slots_a)
         

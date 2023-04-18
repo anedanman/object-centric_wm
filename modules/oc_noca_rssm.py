@@ -37,18 +37,19 @@ class OC_NOCA_RSSM(nn.Module):
         self.image_size = args.image_size
         self.gen_len = (self.image_size // 4) ** 2
 
-        self.dictionary = OneHotDictionary(self.vocab_size + 1, self.slot_size)
+        self.dictionary = OneHotDictionary(self.vocab_size + 1, self.d_model)
         self.tf_decoder = TransformerDecoder(
             args.num_dec_blocks, self.gen_len, args.d_model, args.num_heads, args.dropout
         )
         self.slot_attn = SlotAttentionEncoder(
             args.num_iterations, args.num_slots,
-            args.slot_size, args.slot_size, args.mlp_hidden_size,
+            args.d_model, args.slot_size, args.mlp_hidden_size,
             args.num_slot_heads, args.use_detach
         )
         self.positional_encoder = PositionalEncoding(1 + (self.image_size // 4) ** 2, args.slot_size, args.dropout)
 
         self.fc_action = nn.Linear(self.action_size, self.slot_size)
+        self.slot_proj = nn.Linear(self.slot_size, args.d_model, bias=False)
         self.fc_out = nn.Linear(args.d_model, self.vocab_size, bias=False)
 
     def init_state(self, batch_size, device):
@@ -145,6 +146,7 @@ class OC_NOCA_RSSM(nn.Module):
     
     def slots2tokens(self, slots):
         B, _, _ = slots.size()
+        slots = self.slot_proj(slots)
         z_gen = slots.new_zeros(0)
         logits = slots.new_zeros(0)
         z_transformer_input = z_gen.new_zeros(B, 1, self.vocab_size + 1)

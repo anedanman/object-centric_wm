@@ -320,7 +320,10 @@ class SlateNoCAWM(pl.LightningModule):
             gen_obs.append(gen_img)
             gen_attns.append(attn)
             imag_obs.append(imag_img)
-            imag_attns.append(img_attn)
+            if prior is not None:
+                imag_attns.append(img_attn)
+            else:
+                imag_attns.append(attn)
 
             action = action[0].cpu().numpy()
             next_obs, rew, done, _ = self.env.step(action)

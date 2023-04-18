@@ -66,8 +66,8 @@ class SlateNoCAWM(pl.LightningModule):
         self.automatic_optimization=False
 
     def world_model_loss(self, obs, acs, rews, nonterms):
-        L, B, C, H, W = obs.size()
         obs = preprocess_obs(obs)[1:]
+        L, B, C, H, W = obs.size()
         obs_embed = self.obs_encoder(obs.reshape(L*B, C, H, W))
         _, voc, h_enc, w_enc = obs_embed.size()
         obs_embed = obs_embed.reshape(L, B, voc, h_enc, w_enc)

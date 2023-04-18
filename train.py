@@ -20,7 +20,7 @@ def main(args):
         num_sanity_val_steps=0,
         logger=logger,
         gpus=-1,
-        max_epochs=args.total_steps // (args.steps_log*args.update_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps
+        max_epochs=args.total_steps // (args.steps_log*args.collect_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps
         deterministic=False
     )
     trainer.fit(model, dummy_train_loader, dummy_val_loader)

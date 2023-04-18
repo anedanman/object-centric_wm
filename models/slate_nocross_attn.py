@@ -358,6 +358,7 @@ class SlateNoCAWM(pl.LightningModule):
 
 
 def visualize(image, recon_orig, attns, N=25):
+    B, C, H, W = image.shape
     B, n_vecs, num_slots = attns.shape
     H_enc, W_enc = int(n_vecs**0.5), int(n_vecs**0.5)
     attns = attns.transpose(-1, -2)

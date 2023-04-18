@@ -364,6 +364,8 @@ class SlateNoCAWM(pl.LightningModule):
 
 
 def visualize(image, recon_orig, attns, N=64):
+    image = (image * 255).clip(0, 255)
+    recon_orig = (recon_orig * 255).clip(0, 255)
     B, C, H, W = image.shape
     assert len(recon_orig.shape) == 4
     B, n_vecs, num_slots = attns.shape

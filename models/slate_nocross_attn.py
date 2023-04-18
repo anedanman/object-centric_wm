@@ -318,14 +318,14 @@ class SlateNoCAWM(pl.LightningModule):
                     prior, img_attn = self.rssm.imagine_step(prior, img_action)
             gen_img = self.obs_decoder(posterior['tokens'])
             imag_img = self.obs_decoder(prior['tokens'])
-            observations.append(obs['image'])
-            gen_obs.append(gen_img.cpu().numpy())
-            gen_attns.append(attn.cpu().numpy())
-            imag_obs.append(imag_img.cpu().numpy())
+            observations.append(torch.tensor(obs['image']))
+            gen_obs.append(gen_img)
+            gen_attns.append(attn)
+            imag_obs.append(imag_img)
             if not first_step:
-                imag_attns.append(img_attn.cpu().numpy())
+                imag_attns.append(img_attn)
             else:
-                imag_attns.append(attn.cpu().numpy())
+                imag_attns.append(attn)
 
             action = action[0].cpu().numpy()
             next_obs, rew, done, _ = self.env.step(action)
@@ -342,11 +342,11 @@ class SlateNoCAWM(pl.LightningModule):
                 obs = next_obs 
                 prev_state = posterior
                 prev_action = torch.tensor(action, dtype=torch.float32).to(self.device).unsqueeze(0)
-        observations = torch.tensor(np.concatenate(observations, axis=0))
-        gen_obs = torch.tensor(np.concatenate(gen_obs, axis=0))
-        gen_attns = torch.tensor(np.concatenate(gen_attns, axis=0))
-        imag_obs = torch.tensor(np.concatenate(imag_obs, axis=0))
-        imag_attns = torch.tensor(np.concatenate(imag_attns, axis=0))
+        observations = torch.stack(observations)
+        gen_obs = torch.cat(gen_obs)
+        gen_attns = torch.cat(gen_attns)
+        imag_obs = torch.cat(imag_obs)
+        imag_attns = torch.cat(imag_attns)
 
         gen_grid = visualize(observations, gen_obs, gen_attns)
         imag_grid = visualize(observations, imag_obs, imag_attns)
@@ -359,6 +359,7 @@ class SlateNoCAWM(pl.LightningModule):
 
 def visualize(image, recon_orig, attns, N=25):
     B, C, H, W = image.shape
+    assert len(recon_orig.shape) == 4
     B, n_vecs, num_slots = attns.shape
     H_enc, W_enc = int(n_vecs**0.5), int(n_vecs**0.5)
     attns = attns.transpose(-1, -2)

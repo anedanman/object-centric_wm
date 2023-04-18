@@ -88,12 +88,14 @@ class OC_NOCA_RSSM(nn.Module):
     
     def imagine_step(self, prev_state, prev_action, nonterm=1.0):
         # prev_action = prev_action.reshape(*prev_state['slots'].shape[:-2], 1, -1)
-        print('prev_action', prev_action.shape)
         prev_action = torch.unsqueeze(prev_action, dim=-2)
-        print('prev_action', prev_action.shape)
         prev_action = self.act_fn(self.fc_action(prev_action))
-            
-        slots_a = torch.cat([prev_state['slots'], prev_action], dim=-2)
+        
+        if prev_state['slots'] is None:
+            slots_a = prev_action
+        else:
+            assert len(prev_action.shape) == len(prev_state['slots'].shape)
+            slots_a = torch.cat([prev_state['slots'], prev_action], dim=-2)
         z_gen, logits = self.slots2tokens(slots_a)
         
         emb_input = self.z_hard2embed(z_gen)

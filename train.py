@@ -21,7 +21,8 @@ def main(args):
         logger=logger,
         gpus=-1,
         max_epochs=args.total_steps // (args.steps_log*args.collect_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps
-        deterministic=False
+        deterministic=False,
+        precision="bf16"
     )
     trainer.fit(model, dummy_train_loader, dummy_val_loader)
     wandb.finish()

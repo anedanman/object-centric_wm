@@ -17,6 +17,7 @@ def main(args):
     logger = WandbLogger(project="SLATE-based-WM", name=args.name)
     trainer = pl.Trainer(
         # accelerator="cpu",
+        num_sanity_val_steps=0,
         logger=logger,
         gpus=-1,
         max_epochs=args.total_steps // (args.steps_log*args.update_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps

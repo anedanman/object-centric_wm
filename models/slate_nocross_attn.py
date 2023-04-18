@@ -25,7 +25,7 @@ class SlateNoCAWM(pl.LightningModule):
         super(SlateNoCAWM, self).__init__()
         self.args = args
         self.save_hyperparameters()
-        
+        self.wandb_logger = wandb.init(project='slate_like_model', name=args.name)
         self.rssm = OC_NOCA_RSSM(args)
         self.actor = OC_ActionDecoder(action_size = args.action_size,
             slots_size=args.slot_size,
@@ -283,7 +283,7 @@ class SlateNoCAWM(pl.LightningModule):
     
     def validation_step(self, *args, **kwargs):
         gen_grid, imag_grid = self.eval_logs(25)
-        self.log_dict({
+        self.wandb_logger.log({
             'generated 1step': wandb.Video(gen_grid, fps=12, format="gif"),
             'imagined rollout': wandb.Video(imag_grid, fps=12, format="gif")
         })

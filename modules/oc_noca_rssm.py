@@ -116,7 +116,7 @@ class OC_NOCA_RSSM(nn.Module):
             prior_state, posterior_state, _ = self.observe_step(prev_state, torch.squeeze(prev_action, 1), obs_embed[t], nonterms[t])
             priors.append(prior_state)
             posteriors.append(posterior_state)
-            prev_state = posterior_state
+            prev_state = self.detach_state(posterior_state)
 
         priors = self.stack_states(priors, dim=0)
         posteriors = self.stack_states(posteriors, dim=0)

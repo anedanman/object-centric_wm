@@ -152,16 +152,16 @@ class SlateNoCAWM(pl.LightningModule):
         self.reward_optim.step()
 
         actor_loss = self.actor_loss()
-        self.actor_opt.zero_grad()
+        self.actor_optim.zero_grad()
         actor_loss.backward()
         # nn.utils.clip_grad_norm_(self.actor.parameters(), self.args.grad_clip_norm)
-        self.actor_opt.step()
+        self.actor_optim.step()
 
         value_loss = self.value_loss()
-        self.value_opt.zero_grad()
+        self.value_optim.zero_grad()
         value_loss.backward()
         # nn.utils.clip_grad_norm_(self.value_model.parameters(), self.args.grad_clip_norm)
-        self.value_opt.step()
+        self.value_optim.step()
 
         return cross_entropy.item(), mse.item(), rew_loss.item(), actor_loss.item(), value_loss.item()
     
@@ -237,7 +237,7 @@ class SlateNoCAWM(pl.LightningModule):
             'obs_encoder': self.obs_encoder.state_dict(),
             'obs_decoder': self.obs_decoder.state_dict(),
             'discount_model': self.discount_model.state_dict() if self.args.use_disc_model else None,
-            'actor_optimizer': self.actor_opt.state_dict(),
+            'actor_optimizer': self.actor_optim.state_dict(),
             'value_optimizer': self.value_opt.state_dict(),
             'world_model_optimizer': self.world_model_opt.state_dict(),}, save_path)
 
@@ -251,9 +251,9 @@ class SlateNoCAWM(pl.LightningModule):
         if self.args.use_disc_model and (checkpoint['discount_model'] is not None):
             self.discount_model.load_state_dict(checkpoint['discount_model'])
 
-        self.world_model_opt.load_state_dict(checkpoint['world_model_optimizer'])
-        self.actor_opt.load_state_dict(checkpoint['actor_optimizer'])
-        self.value_opt.load_state_dict(checkpoint['value_optimizer'])
+        self.world_model_optim.load_state_dict(checkpoint['world_model_optimizer'])
+        self.actor_optim.load_state_dict(checkpoint['actor_optimizer'])
+        self.value_optim.load_state_dict(checkpoint['value_optimizer'])
 
     def training_step(self, batch):
         cross_entropy_mean, mse_mean, rew_loss_mean, actor_loss_mean, value_loss_mean = 0, 0, 0, 0, 0

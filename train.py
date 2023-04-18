@@ -19,7 +19,7 @@ def main(args):
         # accelerator="cpu",
         logger=logger,
         gpus=-1,
-        max_epochs=args.total_steps // (args.steps_log*args.collect_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps
+        max_epochs=args.total_steps // (args.steps_log*args.update_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps
         deterministic=False
     )
     trainer.fit(model, dummy_train_loader, dummy_val_loader)
@@ -30,6 +30,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default='test')
+    parser.add_argument('--update_steps', type=int, default=5)
     parser.add_argument('--steps_log', type=int, default=100)
     parser.add_argument('--collect_steps', type=int, default=100)
     parser.add_argument('--total_steps', type=int, default=100000)

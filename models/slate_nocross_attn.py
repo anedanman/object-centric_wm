@@ -371,7 +371,7 @@ def visualize(image, recon_orig, attns, N=25):
     recon_orig = recon_orig[:N].expand(-1, 3, H, W).unsqueeze(dim=1)
     attns = attns[:N].expand(-1, -1, 3, H, W)
 
-    vis_recon = torch.cat((image, recon_orig, attns), dim=1)
+    vis_recon = torch.cat((image.cpu(), recon_orig.cpu(), attns.cpu()), dim=1)
     grids = torch.stack([vutils.make_grid(
         vis_recon[i], nrow=num_slots + 2, pad_value=0.2)[:, 2:-2, 2:-2] for i in range(vis_recon.shape[0])
     ])

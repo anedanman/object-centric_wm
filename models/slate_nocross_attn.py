@@ -49,8 +49,8 @@ class SlateNoCAWM(pl.LightningModule):
         
         self.env = env
         obs_shape = self.env.reset()['image'].shape
-        self.obs_encoder = dVAE_encoder(args.vocab_size, obs_shape)
-        self.obs_decoder = dVAE_decoder(args.vocab_size, obs_shape)
+        self.obs_encoder = dVAE_encoder(args.vocab_size, args.image_size)
+        self.obs_decoder = dVAE_decoder(args.vocab_size, args.image_size)
 
         self.dvae_optim = optim.Adam(list(self.obs_encoder.parameters()) + list(self.obs_decoder.parameters()), lr=args.dvae_lr)
         self.rssm_optim = optim.Adam(self.rssm.parameters(), lr=args.rssm_lr)

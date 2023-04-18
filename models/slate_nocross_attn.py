@@ -319,9 +319,9 @@ class SlateNoCAWM(pl.LightningModule):
             gen_img = self.obs_decoder(posterior['tokens'])
             imag_img = self.obs_decoder(prior['tokens'])
             observations.append(obs['image'])
-            gen_obs.append(gen_img)
-            gen_attns.append(attn)
-            imag_obs.append(imag_img)
+            gen_obs.append(gen_img.cpu().numpy())
+            gen_attns.append(attn.cpu().numpy())
+            imag_obs.append(imag_img.cpu().numpy())
             if not first_step:
                 imag_attns.append(img_attn)
             else:
@@ -343,10 +343,10 @@ class SlateNoCAWM(pl.LightningModule):
                 prev_state = posterior
                 prev_action = torch.tensor(action, dtype=torch.float32).to(self.device).unsqueeze(0)
         observations = np.concatenate(observations, axis=0)
-        gen_obs = np.concatenate(gen_obs.cpu().numpy(), axis=0)
-        gen_attns = np.concatenate(gen_attns.cpu().numpy(), axis=0)
-        imag_obs = np.concatenate(imag_obs.cpu().numpy(), axis=0)
-        imag_attns = np.concatenate(imag_attns.cpu().numpy(), axis=0)
+        gen_obs = np.concatenate(gen_obs, axis=0)
+        gen_attns = np.concatenate(gen_attns, axis=0)
+        imag_obs = np.concatenate(imag_obs, axis=0)
+        imag_attns = np.concatenate(imag_attns, axis=0)
 
         gen_grid = visualize(observations, gen_obs, gen_attns)
         imag_grid = visualize(observations, imag_obs, imag_attns)

@@ -93,6 +93,7 @@ class OC_NOCA_RSSM(nn.Module):
         prev_action = self.act_fn(self.fc_action(prev_action))
         
         if prev_state['slots'] is None:
+            assert len(prev_action.shape) == 3
             slots_a = prev_action
         else:
             assert len(prev_action.shape) == len(prev_state['slots'].shape)
@@ -145,7 +146,8 @@ class OC_NOCA_RSSM(nn.Module):
         return emb_input
     
     def slots2tokens(self, slots):
-        B, _, _ = slots.size()
+        B = slots.shape[0]
+        # B, _, _ = slots.size()
         slots = self.slot_proj(slots)
         z_gen = slots.new_zeros(0)
         logits = slots.new_zeros(0)

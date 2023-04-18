@@ -309,9 +309,11 @@ class SlateNoCAWM(pl.LightningModule):
                 posterior, action, _, attn = self.act_with_world_model(obs, prev_state, prev_action)
 
                 if prior is None:
+                    first_step = True
                     prior = posterior
                     img_action = action
                 else:
+                    first_step = False
                     img_action = self.actor(prior['slots'])
                     prior, img_attn = self.rssm.imagine_step(prior, img_action)
             gen_img = self.obs_decoder(posterior['tokens'])
@@ -320,7 +322,7 @@ class SlateNoCAWM(pl.LightningModule):
             gen_obs.append(gen_img)
             gen_attns.append(attn)
             imag_obs.append(imag_img)
-            if prior is not None:
+            if not first_step:
                 imag_attns.append(img_attn)
             else:
                 imag_attns.append(attn)

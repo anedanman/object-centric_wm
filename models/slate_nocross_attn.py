@@ -286,15 +286,13 @@ class SlateNoCAWM(pl.LightningModule):
             'min_reward': np.min(rews),
             'std_reward': np.std(rews),
         })
-        return cross_entropy
-    
+
     def validation_step(self, *args, **kwargs):
         gen_grid, imag_grid = self.eval_logs(24)
         self.wandb_logger.log({
             'generated 1step': wandb.Video(gen_grid, fps=12, format="gif"),
             'imagined rollout': wandb.Video(imag_grid, fps=12, format="gif")
         })
-        return None
     
     def eval_logs(self, collect_steps):
         observations = []

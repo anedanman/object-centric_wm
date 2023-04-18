@@ -342,11 +342,12 @@ class SlateNoCAWM(pl.LightningModule):
                 obs = next_obs 
                 prev_state = posterior
                 prev_action = torch.tensor(action, dtype=torch.float32).to(self.device).unsqueeze(0)
-        observations = torch.cat(observations, dim=0)
-        gen_obs = torch.cat(gen_obs, dim=0)
-        gen_attns = torch.cat(gen_attns, dim=0)
-        imag_obs = torch.cat(imag_obs, dim=0)
-        imag_attns = torch.cat(imag_attns, dim=0)
+        observations = np.concatenate(observations, axis=0)
+        gen_obs = np.concatenate(gen_obs, axis=0)
+        gen_attns = np.concatenate(gen_attns, axis=0)
+        imag_obs = np.concatenate(imag_obs, axis=0)
+        imag_attns = np.concatenate(imag_attns, axis=0)
+        
         gen_grid = visualize(observations, gen_obs, gen_attns)
         imag_grid = visualize(observations, imag_obs, imag_attns)
 

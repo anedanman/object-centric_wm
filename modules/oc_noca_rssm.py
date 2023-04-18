@@ -113,7 +113,7 @@ class OC_NOCA_RSSM(nn.Module):
 
         for t in range(horizon):
             prev_action = actions[t]* nonterms[t]
-            prior_state, posterior_state, _ = self.observe_step(prev_state, prev_action, obs_embed[t], nonterms[t])
+            prior_state, posterior_state, _ = self.observe_step(prev_state, torch.squeeze(prev_action, 1), obs_embed[t], nonterms[t])
             priors.append(prior_state)
             posteriors.append(posterior_state)
             prev_state = posterior_state

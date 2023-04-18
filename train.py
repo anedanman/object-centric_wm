@@ -16,8 +16,9 @@ def main(args):
     model = SlateNoCAWM(args, env)
     logger = WandbLogger(project="SLATE-based-WM", name=args.name)
     trainer = pl.Trainer(
+        accelerator="cpu",
         logger=logger,
-        gpus=-1,
+        gpus=0,
         max_epochs=args.total_steps // (args.steps_log*args.collect_steps), # number of env.steps per epoch is args.steps_log*args.collect_steps
         deterministic=False
     )

@@ -46,7 +46,7 @@ class OC_NOCA_RSSM(nn.Module):
             args.d_model, args.slot_size, args.mlp_hidden_size,
             args.num_slot_heads, args.use_detach
         )
-        self.positional_encoder = PositionalEncoding(1 + (self.image_size // 4) ** 2, args.slot_size, args.dropout)
+        self.positional_encoder = PositionalEncoding(1 + (self.image_size // 4) ** 2, args.d_model, args.dropout)
 
         self.fc_action = nn.Linear(self.action_size, self.slot_size)
         self.slot_proj = nn.Linear(self.slot_size, args.d_model, bias=False)

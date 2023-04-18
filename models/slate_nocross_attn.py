@@ -63,6 +63,11 @@ class SlateNoCAWM(pl.LightningModule):
         
         self.collect_random_episodes(args.seed_steps)
         self.step = self.replay_buffer.steps
+
+        self.world_model_modules = [self.rssm, self.obs_encoder, self.obs_decoder, self.reward_model]
+        self.value_modules = [self.value_model]
+        self.actor_modules = [self.actor]
+
         self.automatic_optimization=False
 
     def world_model_loss(self, obs, acs, rews, nonterms):

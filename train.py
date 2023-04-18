@@ -64,6 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_slot_heads', type=int, default=1)
     parser.add_argument('--use_detach', type=bool, default=True)
     parser.add_argument('--use_disc_model', type=bool, default=False)
+    parser.add_argument('--action-noise', type=float, default=0.3, help='Action noise')
 
     parser.add_argument('--free-nats', type=float, default=3, help='free nats')
     parser.add_argument('--discount', type=float, default=0.995, help='discount factor for actor critic')

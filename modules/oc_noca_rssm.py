@@ -79,8 +79,8 @@ class OC_NOCA_RSSM(nn.Module):
         emb_input = self.z_hard2embed(z_hard)
 
         slots, attns = self.slot_attn(emb_input[:, 1:], slots=prev_state['slots'])
-        attns = attns.transpose(-1, -2)
-        attns = attns.reshape(B, self.num_slots, 1, H_enc, W_enc).repeat_interleave(self.image_size // H_enc, dim=-2).repeat_interleave(self.image_size // W_enc, dim=-1)
+        # attns = attns.transpose(-1, -2)
+        # attns = attns.reshape(B, self.num_slots, 1, H_enc, W_enc).repeat_interleave(self.image_size // H_enc, dim=-2).repeat_interleave(self.image_size // W_enc, dim=-1)
 
         posterior = {'logits': z_logits, 'tokens': z_hard, 'slots': slots}
         prior, _ = self.imagine_step(prev_state, prev_action, nonterm)

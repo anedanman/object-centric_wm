@@ -150,7 +150,7 @@ class OC_NOCA_RSSM(nn.Module):
         z_transformer_input = z_gen.new_zeros(B, 1, self.vocab_size + 1)
         z_transformer_input[..., 0] = 1.0
         for t in range(self.gen_len):
-            decoder_output = self.tf_dec(
+            decoder_output = self.tf_decoder(
                 self.positional_encoder(self.dictionary(z_transformer_input)),
                 slots
             )

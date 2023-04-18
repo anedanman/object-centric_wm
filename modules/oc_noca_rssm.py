@@ -37,7 +37,7 @@ class OC_NOCA_RSSM(nn.Module):
         self.image_size = args.image_size
         self.gen_len = (self.image_size // 4) ** 2
 
-        self.dictionary = OneHotDictionary(self.vocab_size, self.slot_size)
+        self.dictionary = OneHotDictionary(self.vocab_size + 1, self.slot_size)
         self.tf_decoder = TransformerDecoder(
             args.num_dec_blocks, self.gen_len, args.d_model, args.num_heads, args.dropout
         )

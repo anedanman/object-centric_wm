@@ -129,7 +129,7 @@ class OC_NOCA_RSSM(nn.Module):
 
         for t in range(horizon):
             action = actor(rssm_state['slots'].detach())
-            rssm_state, _ = self.imagine_step(rssm_state, action.view(-1, 1, action.shape[-1]))
+            rssm_state, _ = self.imagine_step(rssm_state, action.view(-1, action.shape[-1]))
             next_states.append(rssm_state)
 
         next_states = self.stack_states(next_states)

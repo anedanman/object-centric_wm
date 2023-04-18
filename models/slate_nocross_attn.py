@@ -253,7 +253,7 @@ class SlateNoCAWM(pl.LightningModule):
     def training_step(self, batch):
         cross_entropy_mean, mse_mean, rew_loss_mean, actor_loss_mean, value_loss_mean = 0, 0, 0, 0, 0
         for _ in range(self.args.update_steps):
-            cross_entropy, mse, rew_loss, actor_loss, value_loss = self.update(batch)
+            cross_entropy, mse, rew_loss, actor_loss, value_loss = self.train_one_batch(batch)
             cross_entropy_mean += cross_entropy
             mse_mean += mse
             rew_loss_mean += rew_loss
@@ -282,7 +282,7 @@ class SlateNoCAWM(pl.LightningModule):
         return cross_entropy
     
     def validation_step(self, *args, **kwargs):
-        gen_grid, imag_grid = self.eval_logs(25)
+        gen_grid, imag_grid = self.eval_logs(24)
         self.wandb_logger.log({
             'generated 1step': wandb.Video(gen_grid, fps=12, format="gif"),
             'imagined rollout': wandb.Video(imag_grid, fps=12, format="gif")

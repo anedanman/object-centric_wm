@@ -151,12 +151,14 @@ class SlateNoCAWM(pl.LightningModule):
         # # nn.utils.clip_grad_norm_(self.reward_model.parameters(), self.args.grad_clip_norm)
         # self.reward_optim.step()
 
+        actor_loss = 0
         # actor_loss = self.actor_loss()
         # self.actor_optim.zero_grad()
         # actor_loss.backward()
         # # nn.utils.clip_grad_norm_(self.actor.parameters(), self.args.grad_clip_norm)
         # self.actor_optim.step()
 
+        value_loss = 0
         # value_loss = self.value_loss()
         # self.value_optim.zero_grad()
         # value_loss.backward()

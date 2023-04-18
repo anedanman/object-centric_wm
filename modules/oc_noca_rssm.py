@@ -43,7 +43,7 @@ class OC_NOCA_RSSM(nn.Module):
         )
         self.slot_attn = SlotAttentionEncoder(
             args.num_iterations, args.num_slots,
-            args.d_model, args.slot_size, args.mlp_hidden_size,
+            args.slot_size, args.slot_size, args.mlp_hidden_size,
             args.num_slot_heads, args.use_detach
         )
         self.positional_encoder = PositionalEncoding(1 + (self.image_size // 4) ** 2, args.slot_size, args.dropout)

@@ -264,7 +264,7 @@ class SlateNoCAWM(pl.LightningModule):
         rew_loss_mean /= self.args.update_steps
         actor_loss_mean /= self.args.update_steps
         value_loss_mean /= self.args.update_steps
-        self.log({
+        self.log_dict({
             'cross_entropy': cross_entropy_mean,
             'mse': mse_mean,
             'rew_loss': rew_loss_mean,
@@ -273,7 +273,7 @@ class SlateNoCAWM(pl.LightningModule):
             'loss': cross_entropy_mean + mse_mean + rew_loss_mean + actor_loss_mean + value_loss_mean,
         })
         rews = self.act_and_collect_data(self.args.collect_steps)
-        self.log({
+        self.log_dict({
             'mean_reward': np.mean(rews),
             'max_reward': np.max(rews),
             'min_reward': np.min(rews),
@@ -283,7 +283,7 @@ class SlateNoCAWM(pl.LightningModule):
     
     def validation_step(self, *args, **kwargs):
         gen_grid, imag_grid = self.eval_logs(25)
-        self.log({
+        self.log_dict({
             'generated 1step': wandb.Video(gen_grid, fps=12, format="gif"),
             'imagined rollout': wandb.Video(imag_grid, fps=12, format="gif")
         })

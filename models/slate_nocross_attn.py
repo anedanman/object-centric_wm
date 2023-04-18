@@ -73,7 +73,8 @@ class SlateNoCAWM(pl.LightningModule):
     def world_model_loss(self, obs, acs, rews, nonterms):
         obs = preprocess_obs(obs)[1:]
         L, B, C, H, W = obs.size()
-        obs_embed = self.obs_encoder(obs.reshape(L*B, C, H, W))
+        obs = obs.reshape(L*B, C, H, W)
+        obs_embed = self.obs_encoder(obs)
         _, voc, h_enc, w_enc = obs_embed.size()
         obs_embed = obs_embed.reshape(L, B, voc, h_enc, w_enc)
         init_state = self.rssm.init_state(self.args.batch_size, self.device)
@@ -288,7 +289,7 @@ class SlateNoCAWM(pl.LightningModule):
         })
 
     def validation_step(self, *args, **kwargs):
-        gen_grid, imag_grid = self.eval_logs(24)
+        gen_grid, imag_grid = self.eval_logs(64)
         self.wandb_logger.log({
             'generated 1step': wandb.Video(gen_grid, fps=12, format="gif"),
             'imagined rollout': wandb.Video(imag_grid, fps=12, format="gif")
@@ -362,7 +363,7 @@ class SlateNoCAWM(pl.LightningModule):
         return [self.rssm_optim, self.actor_optim, self.value_optim, self.dvae_optim, self.reward_optim]
 
 
-def visualize(image, recon_orig, attns, N=25):
+def visualize(image, recon_orig, attns, N=64):
     B, C, H, W = image.shape
     assert len(recon_orig.shape) == 4
     B, n_vecs, num_slots = attns.shape

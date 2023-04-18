@@ -318,7 +318,7 @@ class SlateNoCAWM(pl.LightningModule):
                     prior, img_attn = self.rssm.imagine_step(prior, img_action)
             gen_img = self.obs_decoder(posterior['tokens'])
             imag_img = self.obs_decoder(prior['tokens'])
-            observations.append(obs)
+            observations.append(obs['image'])
             gen_obs.append(gen_img)
             gen_attns.append(attn)
             imag_obs.append(imag_img)

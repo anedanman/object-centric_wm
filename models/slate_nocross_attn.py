@@ -282,7 +282,7 @@ class SlateNoCAWM(pl.LightningModule):
         return cross_entropy
     
     def validation_step(self, *args, **kwargs):
-        gen_grid, imag_grid = self.eval_logs(5)
+        gen_grid, imag_grid = self.eval_logs(25)
         self.log({
             'generated 1step': wandb.Video(gen_grid, fps=12, format="gif"),
             'imagined rollout': wandb.Video(imag_grid, fps=12, format="gif")
@@ -343,11 +343,11 @@ class SlateNoCAWM(pl.LightningModule):
                 prev_state = posterior
                 prev_action = torch.tensor(action, dtype=torch.float32).to(self.device).unsqueeze(0)
         observations = np.concatenate(observations, axis=0)
-        gen_obs = np.concatenate(gen_obs, axis=0)
-        gen_attns = np.concatenate(gen_attns, axis=0)
-        imag_obs = np.concatenate(imag_obs, axis=0)
-        imag_attns = np.concatenate(imag_attns, axis=0)
-        
+        gen_obs = np.concatenate(gen_obs.cpu().numpy(), axis=0)
+        gen_attns = np.concatenate(gen_attns.cpu().numpy(), axis=0)
+        imag_obs = np.concatenate(imag_obs.cpu().numpy(), axis=0)
+        imag_attns = np.concatenate(imag_attns.cpu().numpy(), axis=0)
+
         gen_grid = visualize(observations, gen_obs, gen_attns)
         imag_grid = visualize(observations, imag_obs, imag_attns)
 
@@ -357,7 +357,7 @@ class SlateNoCAWM(pl.LightningModule):
         return [self.rssm_optim, self.actor_optim, self.value_optim, self.dvae_optim, self.reward_optim]
 
 
-def visualize(image, recon_orig, attns, N=5):
+def visualize(image, recon_orig, attns, N=25):
     B, n_vecs, num_slots = attns.shape
     H_enc, W_enc = int(n_vecs**0.5), int(n_vecs**0.5)
     attns = attns.transpose(-1, -2)

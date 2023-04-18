@@ -54,6 +54,7 @@ if __name__ == '__main__':
     parser.add_argument('--activation', type=str, default='relu')
     parser.add_argument('--image_size', type=int, default=96)
     parser.add_argument('--gen_len', type=int, default=16)
+    parser.add_argument('--imagine_horizon', type=int, default=16)
     parser.add_argument('--num_dec_blocks', type=int, default=4)
     parser.add_argument('--d_model', type=int, default=64)
     parser.add_argument('--num_heads', type=int, default=1)

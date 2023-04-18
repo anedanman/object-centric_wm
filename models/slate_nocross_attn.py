@@ -126,7 +126,7 @@ class SlateNoCAWM(pl.LightningModule):
     def train_one_batch(self):
         obs, acs, rews, terms = self.replay_buffer.sample()
         obs  = torch.tensor(obs, dtype=torch.float32).to(self.device)
-        acs  = torch.tensor(acs, dtype=torch.float32).to(self.device).unsqueeze(-2)
+        acs  = torch.tensor(acs, dtype=torch.float32).to(self.device)
         rews = torch.tensor(rews, dtype=torch.float32).to(self.device).unsqueeze(-1)
         nonterms = torch.tensor((1.0-terms), dtype=torch.float32).to(self.device).unsqueeze(-1).unsqueeze(-1)
 

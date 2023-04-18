@@ -63,5 +63,6 @@ if __name__ == '__main__':
     parser.add_argument('--mlp_hidden_size', type=int, default=128)
     parser.add_argument('--num_slot_heads', type=int, default=1)
     parser.add_argument('--use_detach', type=bool, default=True)
+    parser.add_argument('--use_disc_model', type=bool, default=False)
     args = parser.parse_args()
     main(args)

@@ -156,7 +156,7 @@ class OC_NOCA_RSSM(nn.Module):
                 self.positional_encoder(self.dictionary(z_transformer_input)),
                 slots
             )
-            logits_next = self.out(decoder_output)[:, -1:]
+            logits_next = self.fc_out(decoder_output)[:, -1:]
             z_next = F.one_hot(logits_next.argmax(dim=-1), self.vocab_size)
             z_gen = torch.cat((z_gen, z_next), dim=1)
             logits = torch.cat((logits, logits_next), dim=1)

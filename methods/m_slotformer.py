@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from configs.slotformer.slotformer_base import SlotFormerBaseConfig
 from configs.slotformer.utils import get_slotformer_config
 from datasets import get_dataset
+from methods.m_steve import STEVEMethod
 from methods.utills import register_method
 from utils.slotformer_utils import get_slotformer
 
@@ -21,10 +22,15 @@ from utils.optim import get_optimizer, filter_wd_parameters
 
 @register_method('slotformer')
 class SlotFormerMethod(LightningModule):
-    def __init__(self, config_name: str, viz_only: str):
+    def __init__(self, config_name: str, viz_only: bool = False):
         super().__init__()
         self.config: SlotFormerBaseConfig = get_slotformer_config(config_name)
         self.model = get_slotformer(self.config)
+        
+    @staticmethod
+    def _make_video(video, soft_video, hard_video):
+        """Compare the 3 videos."""
+        return STEVEMethod._make_video(video, soft_video, hard_video)
 
     def _make_video_grid(self, imgs, recon_combined, recons, masks):
         """Make a video of grid images showing slot decomposition."""
@@ -58,26 +64,7 @@ class SlotFormerMethod(LightningModule):
         ])  # [T, 3, H, (num_slots+2)*W]
         return save_video
 
-    def on_train_batch_start(self):
-        if not hasattr(self.config, 'use_loss_decay'):
-            return
-
-            # decay the temporal weighting linearly
-        if not self.config.use_loss_decay:
-            self.model.module.loss_decay_factor = 1.
-            return
-
-        cur_steps = self.global_step
-        total_steps = self.config.max_epochs * len(self.train_loader())
-        decay_steps = self.config.loss_decay_pct * total_steps
-
-        if cur_steps >= decay_steps:
-            self.model.loss_decay_factor = 1.
-            return
-
-        # increase tau linearly from 0.01 to 1
-        self.model.loss_decay_factor = \
-            0.01 + cur_steps / decay_steps * 0.99
+    # def on_train_batch_start(self, *args, **kwargs):
 
     def _compare_videos(self, img, recon_combined, rollout_combined):
         """Stack 3 videos to compare them."""
@@ -249,9 +236,6 @@ class SlotFormerMethod(LightningModule):
         sampled_idx = torch.arange(0, dst_len, dst_len // N)
         return sampled_idx
 
-    def on_validation_end(self):
-        self.video_logged = False
-
     def resolve_loss(self, loss_dict: Dict[str, torch.Tensor]):
         loss = 0
         losses_weights = self.config.losses_weights
@@ -296,12 +280,12 @@ class SlotFormerMethod(LightningModule):
                 actions = dst.get_all_actions(i.item())
                 actions = actions.unsqueeze(0).to(self.device)
             T = video.shape[0]
-            # recon as sanity-check
-            soft_recon, hard_recon = self._slots2video(slots)
-            save_video = self._make_video(video, soft_recon, hard_recon)
-            results.append(save_video)
+            # # recon as sanity-check
+            # soft_recon, hard_recon = self._slots2video(slots)
+            # save_video = self._make_video(video, soft_recon, hard_recon)
+            # results.append(save_video)
             # rollout
-            past_steps = T // 4
+            past_steps = self.config.input_frames
             past_slots = slots[:past_steps][None]  # [1, t, N, C]
             pred_slots = self.model.rollout(past_slots, T - past_steps, actions=actions)[0]
             slots = torch.cat([slots[:past_steps], pred_slots], dim=0)
@@ -313,7 +297,7 @@ class SlotFormerMethod(LightningModule):
             torch.cuda.empty_cache()
 
         log_dict = {
-            'val/video': self._convert_video(results),
+            # 'val/video': self._convert_video(results),
             'val/rollout_video': self._convert_video(rollout_results),
         }
         self.logger.experiment.log(log_dict, step=self.global_step)

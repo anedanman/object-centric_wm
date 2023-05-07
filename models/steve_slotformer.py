@@ -1,5 +1,8 @@
+import einops
 import torch
 import torch.nn.functional as F
+
+from utils.checkpoint import delete_model_from_state_dict, startswith_delete
 
 
 from .slotformer import SlotFormer
@@ -41,6 +44,7 @@ class STEVESlotFormer(SlotFormer):
                 num_heads=8,
                 ffn_dim=192 * 4,
                 norm_first=True,
+                use_rotary_pe = False,
                 action_conditioning=False,
                 discrete_actions=True,
                 actions_dim=4,
@@ -49,11 +53,20 @@ class STEVESlotFormer(SlotFormer):
             loss_dict=dict(
                 rollout_len=6,
                 use_img_recon_loss=False,
+                use_inverse_actions_loss=False,
+                use_inv_loss_teacher_forcing=False,
             ),
+            inverse_dict=dict(
+                embedding_size=7 * 128,
+                action_space_size=20,
+                inverse_layers=3,
+                inverse_units=64,
+                inverse_ln=True
+            ),
+            pretrained='',
             eps=1e-6,
     ):
         self.dvae_dict = dvae_dict
-
         super().__init__(
             resolution=resolution,
             clip_len=clip_len,
@@ -62,8 +75,10 @@ class STEVESlotFormer(SlotFormer):
             rollout_dict=rollout_dict,
             loss_dict=loss_dict,
             eps=eps,
+            inverse_dict=inverse_dict
         )
-
+        
+    
     def _build_dvae(self):
         # Build the same dVAE model as in STEVE
         STEVE._build_dvae(self)
@@ -81,12 +96,20 @@ class STEVESlotFormer(SlotFormer):
         ckp_path = self.dec_dict['dec_ckp_path']
         assert ckp_path, 'Please provide pretrained Transformer decoder weight'
         w = torch.load(ckp_path, map_location='cpu')['state_dict']
-        w = {k[14:]: v for k, v in w.items() if k.startswith('trans_decoder.')}
-        self.decoder.load_state_dict(w)
+        w = delete_model_from_state_dict(w)
+        dec_dict = {k[14:]: v for k, v in w.items() if k.startswith('trans_decoder.')}
+        self.decoder.load_state_dict(dec_dict)
         # freeze decoder
         for p in self.decoder.parameters():
             p.requires_grad = False
         self.decoder.eval()
+        
+        if self.use_inverse_actions_loss:
+            inv_dict = {startswith_delete(key, 'inv_model.'): val for key, val in w.items() if key.startswith('inv_model')}
+            self.inv_model.load_state_dict(inv_dict)
+            for p in self.inv_model.parameters():
+                p.requires_grad = False
+            self.inv_model.eval()
 
     def decode(self, slots):
         """Decode from slots to reconstructed images.
@@ -117,7 +140,7 @@ class STEVESlotFormer(SlotFormer):
         """Forward pass."""
         slots = data_dict['slots']  # [B, T', N, C]
         actions = data_dict['actions']
-
+        
         assert self.rollout_len + self.history_len == slots.shape[1], \
             f'wrong SlotFormer training length {slots.shape[1]}'
         past_slots = slots[:, :self.history_len]
@@ -159,6 +182,7 @@ class STEVESlotFormer(SlotFormer):
         """Compute loss that are general for SlotAttn models."""
         gt_slots = model_out_dict['gt_slots']
         pred_slots = model_out_dict['pred_slots']
+        slots = data_dict['slots']
         slot_recon_loss = F.mse_loss(pred_slots, gt_slots)
         loss_dict = {'slot_recon_loss': slot_recon_loss}
         if self.use_img_recon_loss:
@@ -166,6 +190,20 @@ class STEVESlotFormer(SlotFormer):
             target_token_id = model_out_dict['target_token_id'].flatten(0, 1)
             token_recon_loss = F.cross_entropy(pred_token_id, target_token_id)
             loss_dict['img_recon_loss'] = token_recon_loss
+        
+        if self.use_inverse_actions_loss:
+                
+                if self.use_inv_loss_teacher_forcing:
+                    concat_start = gt_slots[:, :-1]
+                else:
+                    concat_start = pred_slots[:, :-1].detatch()
+                start_slots = torch.cat((slots[:, self.history_len-1].unsqueeze(1), concat_start), dim=1)
+                start_slots = einops.rearrange(start_slots, 'b t s d -> (b t) (s d)')
+                next_slots = einops.rearrange(pred_slots, 'b t s d -> (b t) (s d)')
+                pred_actions = self.inv_model(start_slots, next_slots)
+                actions = data_dict['actions'][:, self.history_len-1:]
+                
+                loss_dict['inverse_actions_loss'] = F.cross_entropy(pred_actions, actions[:, :-1].reshape(-1))
         return loss_dict
 
     def train(self, mode=True):

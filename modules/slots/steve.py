@@ -95,7 +95,7 @@ class STEVE(StoSAVi):
                 num_iterations=2,
                 slots_init='shared_gaussian',
                 truncate='bi-level',
-                sigma=1
+                sa_sigma=1,
             ),
             dvae_dict=dict(
                 down_factor=4,
@@ -137,6 +137,7 @@ class STEVE(StoSAVi):
                 use_inverse_actions_loss=False
             ),
             eps=1e-6,
+            pretrained='',
     ):
         nn.Module.__init__(self)
 
@@ -157,6 +158,8 @@ class STEVE(StoSAVi):
         self._build_encoder()
         self._build_decoder()
         self._build_predictor()
+        
+        
         self._build_loss()
 
         # a hack for only extracting slots
@@ -172,7 +175,7 @@ class STEVE(StoSAVi):
         self.num_iterations = self.slot_dict['num_iterations']
         self.sa_truncate = self.slot_dict['truncate']
         self.sa_init = self.slot_dict['slots_init']
-        self.sa_init_sigma = self.slot_dict['sigma']
+        self.sa_sigma= self.slot_dict['sa_sigma']
 
         assert self.sa_init in ['shared_gaussian', 'embedding', 'param', 'embedding_lr_sigma']
         if self.sa_init == 'shared_gaussian':
@@ -185,7 +188,7 @@ class STEVE(StoSAVi):
             nn.init.xavier_uniform_(self.slots_init.weight)
         elif self.sa_init == 'embedding_lr_sigma':
             self.slots_init = nn.Embedding(self.num_slots, self.slot_size)
-            self.sa_init_sigma = nn.Parameter(1)
+            self.slot_log_sigma = nn.Parameter(torch.zeros(1, 1, self.slot_size))
             nn.init.xavier_uniform_(self.slots_init.weight)
         elif self.sa_init == 'param':
             self.slots_init = nn.Parameter(
@@ -228,6 +231,7 @@ class STEVE(StoSAVi):
             vocab_size=self.vocab_size,
             d_model=self.dec_dict['dec_d_model'],
             n_head=self.dec_dict['dec_num_heads'],
+            atten_type=self.dec_dict['atten_type']
             max_len=max_len,
             num_slots=self.num_slots,
             num_layers=self.dec_dict['dec_num_layers'],
@@ -282,10 +286,14 @@ class STEVE(StoSAVi):
                 if self.sa_init == 'shared_gaussian':
                     slot_inits = torch.randn(B, self.num_slots, self.slot_size).type_as(encoder_out) * torch.exp(
                         self.slot_log_sigma) + self.slot_mu
-                elif self.sa_init == 'embedding':
+                elif self.sa_init in ['embedding', 'embedding_lr_sigma'] :
+                    if self.sa_init == 'embedding_lr_sigma':
+                        sigma = torch.exp(self.slot_log_sigma)
+                    else:
+                        sigma = self.sa_sigma
                     mu = self.slots_init.weight.expand(B, -1, -1)
                     z = torch.randn_like(mu).type_as(encoder_out)
-                    slot_inits = mu + z * self.sa_init_sigma * mu.detach()
+                    slot_inits = mu + z * sigma * mu.detach()
                 elif self.sa_init == 'param':
                     slot_inits = self.slots_init.repeat(B, 1, 1)
 
@@ -415,12 +423,17 @@ class STEVE(StoSAVi):
             out_dict['recon_img'] = recon_img
 
         return out_dict
-
-    def decode(self, slots):
-        pass
-
-    def eval(self):
-        return self
+    
+    def load_pretrained(self, pretrained_path):
+        state = torch.load(pretrained_path)
+        self.load_state_dict(delete_model_from_state_dict(state['state_dict']))
+        
+        
+        
+        for p in self.dvae.parameters():
+            if p.requires_grad:
+                raise RuntimeError("Dvae fucked")
+        
 
     def calc_train_loss(self, data_dict, out_dict):
         """Compute loss that are general for SlotAttn models."""

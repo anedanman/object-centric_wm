@@ -16,6 +16,8 @@ class STEVEBaseConfig(TrainingConfig):
     num_workers = 1
     n_samples = 4
     max_epochs = 10
+    
+    model = 'Steve'
 
     dec_lr = 3e-5
     inv_lr = 1e-4
@@ -25,6 +27,8 @@ class STEVEBaseConfig(TrainingConfig):
 
     resolution = (64, 64)
     input_frames = n_sample_frames
+    
+    pretrained = ''
 
 
 
@@ -66,7 +70,7 @@ class STEVEBaseConfig(TrainingConfig):
         dec_num_layers=4,
         dec_num_heads=4,
         dec_d_model=slot_size,
-        atten_type='linear'
+        atten_type='flash'
     )
 
     # Predictor
@@ -113,6 +117,7 @@ class STEVEBaseConfig(TrainingConfig):
             enc_dict=self.enc_dict,
             dvae_dict=self.dvae_dict,
             slot_dict=self.slot_dict,
+            pretrained=self.pretrained
         )
 
 

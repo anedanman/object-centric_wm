@@ -11,9 +11,11 @@ import torchvision.utils as vutils
 
 from configs.steve.steve_base import STEVEBaseConfig
 from configs.steve.utils import get_steve_config
+from data_collection.utils import maybe_create_dirs
 from datasets import get_dataset
 from methods.utills import register_method
 from modules.slots.steve import STEVE
+from utils.checkpoint import delete_model_from_state_dict
 from utils.cossine_lr import CosineAnnealingWarmupRestarts
 from utils.optim import filter_wd_parameters, get_optimizer
 from utils.savi_utils import to_rgb_from_tensor
@@ -41,12 +43,30 @@ class STEVEMethod(LightningModule):
         if prefix:
             data_dict = {f'{prefix}/{key}': val for key, val in data_dict.items()}
         self.log_dict(data_dict)
+        
+    def _log_losses_weights(self, prefix=''):
+        data_dict = {}
+        for weight_name, weight_val in self.config.losses_weights.items():
+            weight = weight_val
+            if callable(weight_val):
+                weight = weight_val(self.global_step, self.get_train_steps())
+                data_dict[f'{weight_name}_weight'] = weight
+        
+        self._log_step(data_dict, prefix)
 
     def training_step(self, data_batch, k):
         model_out = self.model(data_batch)
         loss_out = self.model.calc_train_loss(data_batch, model_out)
         loss_out['total_loss'] = self.resolve_loss(loss_out)
+        params_log = {}
         self._log_step(loss_out, prefix='train')
+        for param, scheduler in self.config.param_scheduling.items():
+            new_val = scheduler(self.global_step, self.get_train_steps())
+            params_log[param] = new_val
+            setattr(self.model,  param, new_val)
+        self._log_step(params_log, prefix='train/params')
+        if self.config.log_losses_weights:
+            self._log_losses_weights('train')
         return loss_out['total_loss']
 
     def validation_step(self, data_batch, k):
@@ -115,9 +135,14 @@ class STEVEMethod(LightningModule):
         return save_video
 
     def on_train_epoch_end(self, *args, **kwarg):
-        checkpoints_path = os.path.join(os.path.dirname(__file__), '..',
-                                        f'checkpoint/{self.config.run_name}/epochs/model_{self.current_epoch}.pt')
-        torch.save(self.model.state_dict(), checkpoints_path)
+        checkpoint_dir = os.path.join(os.path.dirname(__file__), '..',
+                                        f'checkpoint/{self.config.run_name}/epochs')
+        maybe_create_dirs(checkpoint_dir)
+        
+        checkpoints_path = os.path.join(checkpoint_dir,
+                                        f'model_{self.current_epoch}.pt')
+        
+        torch.save({"state_dict": self.model.state_dict()}, checkpoints_path)
 
     @torch.no_grad()
     def _sample_video(self):
@@ -172,6 +197,7 @@ class STEVEMethod(LightningModule):
 
             recon_video = torch.cat(all_soft_video, dim=0)
             recon_video_hard = torch.cat(all_hard_video, dim=0)
+            print(video.shape)
             save_video = self._make_video(video, recon_video, recon_video_hard)
             recon_results.append(save_video)
             torch.cuda.empty_cache()
@@ -220,8 +246,16 @@ class STEVEMethod(LightningModule):
         loss = 0
         losses_weights = self.config.losses_weights
         for loss_name, loss_val in loss_dict.items():
-            loss = loss + losses_weights.get(loss_name, 1) * loss_val
+            weigth = losses_weights.get(loss_name, 1)
+            if callable(weigth):
+                weigth = weigth(self.global_step, self.get_train_steps())
+            loss = loss + weigth * loss_val
         return loss
+    
+    def get_train_steps(self):
+        if not hasattr(self, 'train_steps'):
+            self.train_steps = len(self.train_dataloader()) * self.config.max_epochs
+        return self.train_steps
 
     def setup(self, stage: Optional[str] = None) -> None:
         dataset_getter = get_dataset(self.config.dataset)
@@ -263,8 +297,7 @@ class STEVEMethod(LightningModule):
         optimizer = get_optimizer(self.config.optimizer)(params,
                                                          weight_decay=self.config.weight_decay,
                                                          lr=self.config.lr)
-
-        total_steps = len(self.train_dataloader()) * self.config.max_epochs
+        total_steps = self.get_train_steps()
         warmup_steps = self.config.warmup_steps_pct * total_steps
         scheduler = CosineAnnealingWarmupRestarts(
             optimizer,

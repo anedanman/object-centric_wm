@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 import attrs
 
@@ -13,6 +13,9 @@ class TrainingConfig:
     lr = 1e-3
     weight_decay = 0.0
     clip_grad = 0
+    seed = 42
+    
+    model = ''
 
     # training params
     accelerator: str = 'auto'
@@ -33,6 +36,10 @@ class TrainingConfig:
 
 
     losses_weights: Dict[str, int] = {}
+    
+    param_scheduling: Dict[str, Callable[[int, int], float]] = {}
+    
+    log_losses_weights = False
 
 
 

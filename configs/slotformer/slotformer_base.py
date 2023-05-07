@@ -11,11 +11,11 @@ class SlotFormerBaseConfig(TrainingConfig):
     dataset = 'shapes_slots'
     data_root = './data/shapes'
     slots_root = './data/shapes/slots.pkl'
-    n_sample_frames = 15 + 10  # train on video clips of 6 frames
+    n_sample_frames = 6 + 10  # train on video clips of 6 frames
     frame_offset = 1  # no offset
     video_len = 100
-    train_batch_size = 32
-    val_batch_size = 32
+    train_batch_size = 64
+    val_batch_size = 64
     num_workers = 1
     n_samples = 4
 
@@ -24,7 +24,7 @@ class SlotFormerBaseConfig(TrainingConfig):
     # model configs
     slots_encoder = 'STEVE'
     resolution = (64, 64)
-    input_frames = 15  # burn-in frames
+    input_frames = 1  # burn-in frames
 
     pretrained = ''
 
@@ -44,11 +44,13 @@ class SlotFormerBaseConfig(TrainingConfig):
         slots_pe='',  # no slots P.E.
         act_pe='sin',
         # Transformer-related configs
+        use_all_slots = False,
         d_model=slot_size,
         num_layers=2,
         num_heads=8,
         ffn_dim=slot_size * 4,
         norm_first=True,
+        use_rotary_pe = False,
         action_conditioning=True,
         discrete_actions=True,
         actions_dim=16,
@@ -67,6 +69,8 @@ class SlotFormerBaseConfig(TrainingConfig):
     loss_dict = dict(
         rollout_len=n_sample_frames - rollout_dict['history_len'],
         use_img_recon_loss=True,  # STEVE recon img is too memory-intensive
+        use_inverse_actions_loss=True,
+        use_inv_loss_teacher_forcing=False,
     )
 
     losses_weights = dict(
@@ -78,6 +82,14 @@ class SlotFormerBaseConfig(TrainingConfig):
         down_factor=4,
         vocab_size=4096,
         dvae_ckp_path='',
+    )
+    
+    inverse_dict = dict(
+        embedding_size=slot_size * slot_dict['num_slots'],
+        action_space_size=20,
+        inverse_layers=3,
+        inverse_units=64,
+        inverse_ln=True
     )
 
     loss_decay_pct: int = 0
@@ -93,6 +105,7 @@ class SlotFormerBaseConfig(TrainingConfig):
             dec_dict=self.dec_dict,
             loss_dict=self.loss_dict,
             dvae_dict=self.dvae_dict,
+            inverse_dict=self.inverse_dict
         )
 
         if self.slots_encoder.upper() == "STEVE":

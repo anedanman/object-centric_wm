@@ -52,6 +52,7 @@ class MultiHeadAttention(nn.Module):
         output = self.proj_o(output)
         output = self.output_dropout(output)
         return output
+    
 
 
 class PositionalEncoding(nn.Module):

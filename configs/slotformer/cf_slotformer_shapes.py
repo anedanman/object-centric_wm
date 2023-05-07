@@ -7,34 +7,34 @@ from configs.slotformer.utils import register_slotformer_config
 @register_slotformer_config('shapes')
 class SlotFormerShapes(SlotFormerBaseConfig):
     project = "SlotFormer"
-    run_name = "Slotformer Shapes Baseline"
+    run_name = "Slotformer Shapes Teacher Forcing Inv Loss"
 
     accelerator: str = 'gpu'
     devices = 1
 
     # Adam optimizer, Cosine decay with Warmup
-    optimizer = 'Adam'
-    lr = 2e-4
+    optimizer = 'AdamW'
+    lr = 1e-4
     warmup_steps_pct = 0.05  # warmup in the first 5% of total steps
     # no weight decay
-    clip_grad = 0.08
+    clip_grad = 0.1
 
     # data settings
     dataset = 'shapes_slots'
     data_root = './data/shapes'
     slots_root = './data/shapes/slots.pkl'
-    n_sample_frames = 15 + 10
+    n_sample_frames = 10 + 10
     frame_offset = 1  # no offset
     video_len = 100
-    train_batch_size = 32
-    val_batch_size = 32
+    train_batch_size = 64
+    val_batch_size = 64
     num_workers = 1
     n_samples = 4
 
     # model configs
     slots_encoder = 'STEVE'
     resolution = (64, 64)
-    input_frames = 15  # burn-in frames
+    input_frames = 10  # burn-in frames
 
     num_slots = 6
     slot_size = 128
@@ -52,14 +52,16 @@ class SlotFormerShapes(SlotFormerBaseConfig):
         slots_pe='',  # no slots P.E.
         act_pe='sin',
         # Transformer-related configs
+        use_all_slots = False,
         d_model=slot_size,
-        num_layers=2,
+        num_layers=5,
         num_heads=8,
         ffn_dim=slot_size * 4,
         norm_first=True,
         action_conditioning=True,
+        use_rotary_pe = False,
         discrete_actions=True,
-        actions_dim=16,
+        actions_dim=8,
         max_discrete_actions=20
     )
 
@@ -76,19 +78,30 @@ class SlotFormerShapes(SlotFormerBaseConfig):
         dec_num_heads=4,
         dec_d_model=slot_size,
         atten_type='linear',
-        dec_ckp_path='checkpoint/steve_shapes_params/models/epoch/model_4.pth',
+        dec_ckp_path='/code/checkpoint/STEVE Shapes/epoch=6-step=103907.ckpt',
     )
 
     # loss configs
     loss_dict = dict(
         rollout_len=n_sample_frames - rollout_dict['history_len'],
-        use_img_recon_loss=True,  # STEVE recon img is too memory-intensive
+        use_img_recon_loss=False,  # STEVE recon img is too memory-intensive
+        use_inverse_actions_loss=True,
+        use_inv_loss_teacher_forcing=True,
+    )
+    
+    inverse_dict = dict(
+        embedding_size=slot_size * num_slots,
+        action_space_size=20,
+        inverse_layers=3,
+        inverse_units=64,
+        inverse_ln=True
     )
 
     losses_weights = dict(
         slot_recon_loss=1,
         img_recon_loss=1,
     )
+    
 
     next_actions = True
     reverse_color = True

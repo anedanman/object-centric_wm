@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as distributions
 
-from modules.dynaimcs.dynam import DynamicsTransformer
+from modules.dynamics.dynam import DynamicsTransformer
 from modules.slots.slate_modules import TransformerDecoder, PositionalEncoding
 from modules.slots.slot_attn import SlotAttentionEncoder
 from utils.gumbel import gumbel_softmax

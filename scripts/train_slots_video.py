@@ -12,7 +12,8 @@ if __name__ == "__main__":
     method = method_class(args.config)
     config: TrainingConfig = method.config
     strategy = "ddp" if args.ddp else None
-    precision = 16 if args.fp16 else 32
+    precision = '16-true' if args.fp16 else 32
+    pl.seed_everything(config.seed)
 
 
 
@@ -38,4 +39,4 @@ if __name__ == "__main__":
         ]
     )
 
-    trainer.fit(method)
+    trainer.fit(method, ckpt_path=args.checkpoint)

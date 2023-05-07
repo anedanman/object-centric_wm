@@ -2,6 +2,7 @@ import torch.optim
 from torch.nn import LayerNorm, GroupNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.modules.instancenorm import _InstanceNorm
+from lion_pytorch import Lion
 
 
 def get_optimizer(name: 'str'):
@@ -10,6 +11,8 @@ def get_optimizer(name: 'str'):
         return torch.optim.Adam
     elif l_name.lower() == 'adamw':
         return torch.optim.AdamW
+    elif l_name.lower() == 'lion':
+        return Lion
     else:
         raise NotImplementedError(f'Optimizer {name} is not implemented')
 

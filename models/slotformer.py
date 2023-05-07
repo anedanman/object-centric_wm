@@ -1,9 +1,13 @@
+from typing import Optional, Union
+import einops
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from modules.dynaimcs.perceiver import TransformerActionEncoderSC
+from modules.dynamics.perceiver import TransformerActionEncoderSC
+from modules.loss.inverse_actions import InverseModel
 from modules.slots.savi import StoSAVi
+from utils.rotary_pos_encoding import RotaryEmbedding
 
 
 def get_sin_pos_enc(seq_len, d_model):
@@ -26,6 +30,8 @@ def build_pos_enc(pos_enc, input_len, d_model):
     elif 'sin' in pos_enc:  # 'sin', 'sine'
         pos_embedding = nn.Parameter(
             get_sin_pos_enc(input_len, d_model), requires_grad=False)
+    elif pos_enc == 'rotary':
+        pos_embedding = RotaryEmbedding(d_model//2)
     else:
         raise NotImplementedError(f'unsupported pos enc {pos_enc}')
     return pos_embedding
@@ -60,6 +66,8 @@ class SlotRollouter(Rollouter):
             num_layers=4,
             num_heads=8,
             ffn_dim=512,
+            use_all_slots = False,
+            use_rotary_pe = False,
             norm_first=True,
             action_conditioning=False,
             discrete_actions=True,
@@ -70,9 +78,14 @@ class SlotRollouter(Rollouter):
 
         self.num_slots = num_slots
         self.history_len = history_len
+        self.use_all_slots = use_all_slots
+        self.use_rotary_pe = use_rotary_pe
 
         if action_conditioning and discrete_actions:
             self.action_embedding = nn.Embedding(max_discrete_actions, actions_dim)
+            
+        if use_all_slots:
+            slot_size = slot_size * num_slots
 
         self.in_proj = nn.Linear(slot_size, d_model)
         self.action_conditioning = action_conditioning
@@ -84,13 +97,23 @@ class SlotRollouter(Rollouter):
                                                            ffn_dim,
                                                            norm_first,
                                                            action_conditioning,
-                                                           actions_dim)
+                                                           actions_dim,
+                                                           use_rotary_pe)
         self.enc_t_pe = build_pos_enc(t_pe, history_len, d_model)
-        self.enc_slots_pe = build_pos_enc(slots_pe, num_slots, d_model)
+        self.enc_slots_pe = None
+        if not self.use_all_slots:
+            self.enc_slots_pe = build_pos_enc(slots_pe, num_slots, d_model)
         self.out_proj = nn.Linear(d_model, slot_size)
 
         if self.action_conditioning:
             self.enc_act_pe = build_pos_enc(act_pe, history_len, actions_dim)
+    
+    def apply_pos_embedding(self, emb: Optional[Union[torch.Tensor, RotaryEmbedding]], inp: torch.Tensor):
+        if emb is None:
+            return inp
+        if isinstance(emb, RotaryEmbedding):
+            return emb.rotate_queries_or_keys(inp, 1)
+        return emb + inp
 
     def _build_transformer(self,
                            d_model=128,
@@ -99,13 +122,16 @@ class SlotRollouter(Rollouter):
                            ffn_dim=512,
                            norm_first=True,
                            action_conditioning=False,
-                           actions_dim=4):
+                           actions_dim=4,
+                           use_rotary_pe=False):
         if action_conditioning:
             return TransformerActionEncoderSC(d_model=d_model,
                                               num_layers=num_layers,
                                               num_heads=num_heads,
                                               ffn_dim=ffn_dim,
-                                              actions_dim=actions_dim)
+                                              actions_dim=actions_dim, 
+                                              norm_first=norm_first,
+                                              use_rotary_pe=use_rotary_pe)
         else:
             enc_layer = nn.TransformerEncoderLayer(
                 d_model=d_model,
@@ -117,6 +143,29 @@ class SlotRollouter(Rollouter):
 
             return nn.TransformerEncoder(
                 encoder_layer=enc_layer, num_layers=num_layers)
+            
+    def _init_temporal_pe(self, batch_size):
+        if self.enc_t_pe is None:
+            return
+        if isinstance(self.enc_t_pe, RotaryEmbedding):
+            return self.enc_t_pe
+        enc_pe = self.enc_t_pe.repeat(batch_size, 1, 1)
+        if not self.use_all_slots:
+            enc_pe = self.enc_t_pe.unsqueeze(2). \
+                repeat(1, 1, self.num_slots, 1).flatten(1, 2)
+        return enc_pe
+    
+    def _init_act_pe(self, batch_size):
+        if self.enc_act_pe is None:
+            return
+        if isinstance(self.enc_act_pe, RotaryEmbedding):
+            return self.enc_act_pe 
+        enc_act = self.enc_act_pe.repeat(batch_size, 1, 1)
+        if not self.use_all_slots:
+            enc_act = self.enc_act_pe.unsqueeze(2). \
+                repeat(1, 1, self.num_slots, 1).flatten(1, 2)
+        return enc_act
+
 
     def forward(self, x, pred_len, actions=None):
         """Forward function.
@@ -132,27 +181,30 @@ class SlotRollouter(Rollouter):
 
         B = x.shape[0]
         burn_in_steps = x.shape[1]
-        x = x.flatten(1, 2)  # [B, T * N, slot_size]
-
+        if not self.use_all_slots:
+            x = x.flatten(1, 2)  # [B, T * N, slot_size]
+        else:
+            x = x.flatten(2, 3) # [B, T, slot_size * N]
+        
         in_x = x
-
+        
         # temporal_pe repeat for each slot, shouldn't be None
         # [1, T, D] --> [B, T, N, D] --> [B, T * N, D]
-        enc_pe = self.enc_t_pe.unsqueeze(2). \
-            repeat(B, 1, self.num_slots, 1).flatten(1, 2)
+        enc_pe = self._init_temporal_pe(B)
 
         if self.action_conditioning:
-            enc_act = self.enc_act_pe.unsqueeze(2). \
-                repeat(B, 1, self.num_slots, 1).flatten(1, 2)
+            enc_act = self._init_act_pe(B)
         # slots_pe repeat for each timestep
-        if self.enc_slots_pe is not None:
+        if self.enc_slots_pe is not None and not isinstance(self.enc_slots_pe, RotaryEmbedding): # TODO fix later
             slots_pe = self.enc_slots_pe.unsqueeze(1). \
                 repeat(B, self.history_len, 1, 1).flatten(1, 2)
             enc_pe = slots_pe + enc_pe
 
         if self.action_conditioning and self.discrete_actions:
-            actions = actions.unsqueeze(2).repeat(1, 1, self.num_slots).flatten(1, 2)
+            if not self.use_all_slots:
+                actions = actions.unsqueeze(2).repeat(1, 1, self.num_slots).flatten(1, 2)
             actions = self.action_embedding(actions)
+            
 
         # generate future slots autoregressively
         pred_out = []
@@ -160,18 +212,22 @@ class SlotRollouter(Rollouter):
             # project to latent space
             x = self.in_proj(in_x)
             # encoder positional encoding
-            x = x + enc_pe
+            x = self.apply_pos_embedding(enc_pe, x)
             # spatio-temporal interaction via transformer
+            time_shift = 1 if self.use_all_slots else self.num_slots 
             if self.action_conditioning:
-                act = actions[:, self.num_slots * k:self.num_slots * (burn_in_steps + k)] + enc_act
+                act = self.apply_pos_embedding(enc_act, actions[:, time_shift * k:time_shift * (burn_in_steps + k)])
                 x = self.transformer_encoder(x, act)
             else:
                 x = self.transformer_encoder(x)
             # take the last N output tokens to predict slots
-            pred_slots = self.out_proj(x[:, -self.num_slots:])
-            pred_out.append(pred_slots)
+            pred_slots = self.out_proj(x[:, -time_shift:])
+            slots_to_save = pred_slots
+            if self.use_all_slots:
+                slots_to_save = slots_to_save.reshape(B, self.num_slots, -1)
+            pred_out.append(slots_to_save)
             # feed the predicted slots autoregressively
-            in_x = torch.cat([in_x[:, self.num_slots:], pred_out[-1]], dim=1)
+            in_x = torch.cat([in_x[:, time_shift:], pred_slots], dim=1)
 
         return torch.stack(pred_out, dim=1)
 
@@ -214,15 +270,27 @@ class SlotFormer(nn.Module):
                 num_heads=8,
                 ffn_dim=512,
                 norm_first=True,
+                use_all_slots = False,
+                use_rotary_pe = False,
                 action_conditioning=False,
                 discrete_actions=True,
                 actions_dim=4,
                 max_discrete_actions=12
             ),
+            inverse_dict=dict(
+                embedding_size=7 * 128,
+                action_space_size=20,
+                inverse_layers=3,
+                inverse_units=64,
+                inverse_ln=True
+            ),
             loss_dict=dict(
                 rollout_len=6,
                 use_img_recon_loss=False,
+                use_inverse_actions_loss=False,
+                use_inv_loss_teacher_forcing=False,
             ),
+            pretrained='',
             eps=1e-6,
     ):
         super().__init__()
@@ -230,16 +298,19 @@ class SlotFormer(nn.Module):
         self.resolution = resolution
         self.clip_len = clip_len
         self.eps = eps
-
+        
+        self.pretrained = pretrained
+        
         self.slot_dict = slot_dict
         self.dec_dict = dec_dict
         self.rollout_dict = rollout_dict
         self.loss_dict = loss_dict
-
+        self.inverse_dict = inverse_dict
+        
+        self._build_loss()
         self._build_slot_attention()
         self._build_decoder()
         self._build_rollouter()
-        self._build_loss()
 
         self.testing = False  # for compatibility
         self.loss_decay_factor = 1.  # temporal loss weighting
@@ -271,6 +342,13 @@ class SlotFormer(nn.Module):
             p.requires_grad = False
         self.decoder.eval()
         self.decoder_pos_embedding.eval()
+        
+        if self.use_inverse_actions_loss:
+            inv_dict = {key.replace('inv_model.'): val for key, val in w.items() if key.startswith('inv_model')}
+            self.inv_model.load_state_dict(inv_dict)
+            for p in self.inv_model.parameters():
+                p.requires_grad = False
+            self.inv_model.eval()
 
     def _build_rollouter(self):
         """Predictor as in SAVi to transition slot from time t to t+1."""
@@ -282,6 +360,11 @@ class SlotFormer(nn.Module):
         """Loss calculation settings."""
         self.rollout_len = self.loss_dict['rollout_len']  # rollout steps
         self.use_img_recon_loss = self.loss_dict['use_img_recon_loss']
+        self.use_inverse_actions_loss = self.loss_dict['use_inverse_actions_loss']
+        self.use_inv_loss_teacher_forcing= self.loss_dict['use_inv_loss_teacher_forcing']
+
+        if self.use_inverse_actions_loss:
+            self.inv_model = InverseModel(**self.inverse_dict)
 
     def decode(self, slots):
         """Decode from slots to reconstructed images and masks."""
@@ -341,6 +424,7 @@ class SlotFormer(nn.Module):
         """Compute training loss."""
         loss_dict = {}
         gt_slots = model_out_dict['gt_slots']  # [B, rollout_T, N, C]
+        slots = data_dict['slots']
         pred_slots = model_out_dict['pred_slots']
         slots_loss = F.mse_loss(pred_slots, gt_slots, reduction='none')
 
@@ -381,6 +465,15 @@ class SlotFormer(nn.Module):
             if trunc_loss:
                 imgs_loss = imgs_loss.flatten(0, 1)[valid_mask]
             loss_dict['img_recon_loss'] = imgs_loss.mean()
+        
+        if self.use_inverse_actions_loss:
+                rollout_slots = torch.cat((slots[:, self.history_len-1].unsqueeze(1), pred_slots), dim=1)
+                in_slots = einops.rearrange(rollout_slots, 'b t s d -> b t (s d)')
+                start_slots = einops.rearrange(in_slots[:, :-1, :], 'b t d -> (b t) d')
+                target_slots = einops.rearrange(in_slots[:, 1:, :], 'b t d -> (b t) d')
+                pred_actions = self.inv_model(start_slots, target_slots)
+                actions = data_dict['actions']
+                loss_dict['inverse_actions_loss'] = F.cross_entropy(pred_actions, actions[:, :-1].reshape(-1))
         return loss_dict
 
     @property
@@ -397,4 +490,6 @@ class SlotFormer(nn.Module):
         self.decoder.eval()
         if hasattr(self, 'decoder_pos_embedding'):
             self.decoder_pos_embedding.eval()
+        if hasattr(self, 'inv_model'):
+            self.inv_model.eval()
         return self

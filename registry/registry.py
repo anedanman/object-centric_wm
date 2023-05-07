@@ -8,7 +8,7 @@ class Registry(Singleton):
 
     def add_to_registry(self, token: str, val: Any):
         if token in self._registry:
-            raise ValueError("Token already in registry")
+            return
         self._registry[token] = val
 
     def get_from_registry(self, token: str):

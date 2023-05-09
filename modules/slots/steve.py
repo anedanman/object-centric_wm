@@ -427,13 +427,6 @@ class STEVE(StoSAVi):
     def load_pretrained(self, pretrained_path):
         state = torch.load(pretrained_path)
         self.load_state_dict(delete_model_from_state_dict(state['state_dict']))
-        
-        
-        
-        for p in self.dvae.parameters():
-            if p.requires_grad:
-                raise RuntimeError("Dvae fucked")
-        
 
     def calc_train_loss(self, data_dict, out_dict):
         """Compute loss that are general for SlotAttn models."""

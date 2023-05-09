@@ -17,4 +17,7 @@ pytorch-lightning==2.0.2
 matplotlib==3.5.1
 scikit-image==0.18.3
 typed-argument-parser==1.8.0
-flash-attn==1.0.4
+wandb==0.15.2
+lion-pytorch==0.0.7
+pycocotools==2.0.6
+einops==0.6.1

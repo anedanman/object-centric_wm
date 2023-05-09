@@ -11,8 +11,8 @@ if __name__ == "__main__":
     method_class = get_method(args.method)
     method = method_class(args.config)
     config: TrainingConfig = method.config
-    strategy = "ddp" if args.ddp else None
-    precision = '16-true' if args.fp16 else 32
+    strategy = "ddp" if args.ddp else 'auto'
+    precision = 16 if args.fp16 else 32
     pl.seed_everything(config.seed)
 
 
@@ -28,6 +28,7 @@ if __name__ == "__main__":
         accelerator=config.accelerator,
         log_every_n_steps=5,
         devices=config.devices,
+        accumulate_grad_batches=config.grad_accum_steps,
         strategy=strategy,
         precision=precision,
         max_epochs=config.max_epochs,

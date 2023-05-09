@@ -231,7 +231,7 @@ class STEVE(StoSAVi):
             vocab_size=self.vocab_size,
             d_model=self.dec_dict['dec_d_model'],
             n_head=self.dec_dict['dec_num_heads'],
-            atten_type=self.dec_dict['atten_type']
+            # atten_type=self.dec_dict['atten_type']
             max_len=max_len,
             num_slots=self.num_slots,
             num_layers=self.dec_dict['dec_num_layers'],
